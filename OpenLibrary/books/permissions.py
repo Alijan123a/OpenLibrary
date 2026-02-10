@@ -44,3 +44,28 @@ class IsStudent(permissions.BasePermission):
         role = _get_normalized_role(request)
         return role == "student"
 
+
+class BorrowListCreatePermission(permissions.BasePermission):
+    """Students can create; all authenticated can list."""
+    def has_permission(self, request, view):
+        if not getattr(request.user, "is_authenticated", False):
+            return False
+        if view.action in ("list", "retrieve"):
+            return True
+        if view.action == "create":
+            role = _get_normalized_role(request)
+            return role == "student"
+        return True  # update/delete checked in has_object_permission
+
+
+class BorrowObjectPermission(permissions.BasePermission):
+    """Students can update/return only their own borrows; librarians can manage any."""
+    def has_object_permission(self, request, view, obj):
+        role = _get_normalized_role(request)
+        if role in {"system admin", "admin", "librarian - library employee", "librarian"}:
+            return True
+        if role == "student":
+            user_id = str(getattr(request.user, "id", ""))
+            return obj.borrower_id == user_id
+        return False
+

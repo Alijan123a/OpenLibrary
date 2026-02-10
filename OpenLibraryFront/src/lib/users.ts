@@ -22,64 +22,61 @@ function getToken(): string {
   return token;
 }
 
-/** Placeholder: Fetch all users. Returns empty array if endpoint is not available. */
-export async function getUsers(): Promise<User[]> {
-  try {
-    const res = await fetch(`${AUTH_BASE_URL}/api/users/`, {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
-    if (!res.ok) return [];
-    return res.json();
-  } catch {
-    return [];
+/** Fetch users from Auth Service. Admin sees all; librarian sees only students. */
+export async function getUsers(role?: "admin" | "librarian" | "student"): Promise<User[]> {
+  const url = role ? `${AUTH_BASE_URL}/api/users/?role=${role}` : `${AUTH_BASE_URL}/api/users/`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || `Failed to fetch users: ${res.status}`);
   }
+  return res.json();
 }
 
-/** Placeholder: Create a user via Auth Service. */
-export async function createUser(data: { username: string; password: string; email: string; role: string }): Promise<User | null> {
-  try {
-    const res = await fetch(`${AUTH_BASE_URL}/api/users/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${getToken()}`,
-      },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) return null;
-    return res.json();
-  } catch {
-    return null;
+/** Create a user via Auth Service. */
+export async function createUser(data: { username: string; password: string; email: string; role: string }): Promise<User> {
+  const res = await fetch(`${AUTH_BASE_URL}/api/users/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getToken()}`,
+    },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.username?.[0] || data.password?.[0] || data.detail || `Failed to create user: ${res.status}`);
   }
+  return res.json();
 }
 
-/** Placeholder: Update a user. */
-export async function updateUser(id: number, data: Partial<{ username: string; email: string; role: string; is_active: boolean }>): Promise<User | null> {
-  try {
-    const res = await fetch(`${AUTH_BASE_URL}/api/users/${id}/`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${getToken()}`,
-      },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) return null;
-    return res.json();
-  } catch {
-    return null;
+/** Update a user. */
+export async function updateUser(id: number, data: Partial<{ username: string; email: string; role: string; is_active: boolean }>): Promise<User> {
+  const res = await fetch(`${AUTH_BASE_URL}/api/users/${id}/`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getToken()}`,
+    },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.username?.[0] || data.detail || `Failed to update user: ${res.status}`);
   }
+  return res.json();
 }
 
-/** Placeholder: Delete a user. */
-export async function deleteUser(id: number): Promise<boolean> {
-  try {
-    const res = await fetch(`${AUTH_BASE_URL}/api/users/${id}/`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
-    return res.ok;
-  } catch {
-    return false;
+/** Delete a user. */
+export async function deleteUser(id: number): Promise<void> {
+  const res = await fetch(`${AUTH_BASE_URL}/api/users/${id}/`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || `Failed to delete user: ${res.status}`);
   }
 }

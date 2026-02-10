@@ -3,14 +3,15 @@ from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticated
 
 from .filters import BookFilter
-from .models import Book, Shelf, ShelfBook, Borrow
+from .models import Book, Shelf, ShelfBook, Borrow, AudioBookUpload
 from .serializers import (
     BookSerializer,
     BorrowSerializer,
     ShelfBookSerializer,
     ShelfSerializer,
+    AudioBookUploadSerializer,
 )
-from .permissions import IsAdminOrLibrarian, IsStudent
+from .permissions import IsAdminOrLibrarian, IsStudent, BorrowListCreatePermission, BorrowObjectPermission
 
 
 # User/Admin/Librarian/Member management lives in OpenLibraryAuthService; this backend only verifies JWT and uses identity for permissions.
@@ -36,7 +37,7 @@ class BookViewSet(viewsets.ModelViewSet):
     search_fields = ['title', 'description']
 
     # Allow ordering of the results.
-    ordering_fields = ['publication_date', 'price']
+    ordering_fields = ['published_date', 'price']
 
 
 # Admins and Library employees can manage shelfs
@@ -53,16 +54,23 @@ class ShelfBookViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsAdminOrLibrarian, ]  # Require authentication, Apply permission
 
 
-# Students can borrow books but not manage them
+# Students can create borrows; librarians/admins can list all; students see only their own.
 class BorrowViewSet(viewsets.ModelViewSet):
     queryset = Borrow.objects.all()
     serializer_class = BorrowSerializer
-    permission_classes = [IsAuthenticated, IsStudent]
-    
+    permission_classes = [IsAuthenticated, BorrowListCreatePermission, BorrowObjectPermission]
+
+    def get_queryset(self):
+        """Students see only their own borrows; librarians/admins see all."""
+        qs = Borrow.objects.all()
+        role = getattr(getattr(self.request, "user", None), "role", None)
+        if role and str(role).strip().lower() == "student":
+            user_id = str(getattr(self.request.user, "id", ""))
+            qs = qs.filter(borrower_id=user_id)
+        return qs
+
     def perform_create(self, serializer):
-        """
-        Capture identity from JWT (verified by Auth Service) and store in Borrow.
-        """
+        """Capture identity from JWT (verified by Auth Service) and store in Borrow."""
         user = getattr(self.request, "user", None)
         borrower_kwargs = {}
         if user is not None:
@@ -72,5 +80,34 @@ class BorrowViewSet(viewsets.ModelViewSet):
                 "borrower_role": getattr(user, "role", None),
             }
         serializer.save(**borrower_kwargs)
+
+    def perform_update(self, serializer):
+        """When return_date is set, call model's return_book() to update shelf copies."""
+        instance = serializer.instance
+        return_date = serializer.validated_data.get("return_date")
+        if return_date is not None and instance.return_date is None:
+            instance.return_book()
+        else:
+            serializer.save()
+
+
+class AudioBookUploadViewSet(viewsets.ModelViewSet):
+    """Students can upload audio book files."""
+    queryset = AudioBookUpload.objects.all()
+    serializer_class = AudioBookUploadSerializer
+    permission_classes = [IsAuthenticated, IsStudent]
+    http_method_names = ['get', 'post', 'head', 'options']
+
+    def get_queryset(self):
+        """Students see only their own uploads."""
+        user_id = str(getattr(self.request.user, "id", ""))
+        return AudioBookUpload.objects.filter(borrower_id=user_id)
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        serializer.save(
+            borrower_id=getattr(user, "id", None),
+            borrower_username=getattr(user, "username", None),
+        )
 
 

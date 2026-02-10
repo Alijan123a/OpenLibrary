@@ -47,12 +47,10 @@ function StudentModal({
     setError("");
     try {
       if (student) {
-        const result = await updateUser(student.id, { username, email });
-        if (!result) throw new Error("خطا در بروزرسانی");
+        await updateUser(student.id, { username, email });
       } else {
         if (!password) { setError("رمز عبور الزامی است"); setSaving(false); return; }
-        const result = await createUser({ username, password, email, role: "student" });
-        if (!result) throw new Error("خطا در ایجاد کاربر");
+        await createUser({ username, password, email, role: "student" });
       }
       onSaved();
       onClose();
@@ -108,9 +106,9 @@ function StudentsContent() {
 
   const fetchUsers = () => {
     setLoading(true);
-    getUsers()
-      .then((all) => setUsers(all.filter((u) => u.role === "student")))
-      .catch(() => {})
+    getUsers("student")
+      .then(setUsers)
+      .catch(() => setUsers([]))
       .finally(() => setLoading(false));
   };
 

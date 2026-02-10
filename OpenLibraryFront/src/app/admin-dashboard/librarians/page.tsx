@@ -47,12 +47,10 @@ function LibrarianModal({
     setError("");
     try {
       if (librarian) {
-        const result = await updateUser(librarian.id, { username, email });
-        if (!result) throw new Error("خطا در بروزرسانی");
+        await updateUser(librarian.id, { username, email });
       } else {
         if (!password) { setError("رمز عبور الزامی است"); setSaving(false); return; }
-        const result = await createUser({ username, password, email, role: "librarian" });
-        if (!result) throw new Error("خطا در ایجاد کاربر");
+        await createUser({ username, password, email, role: "librarian" });
       }
       onSaved();
       onClose();
@@ -108,9 +106,9 @@ function LibrariansContent() {
 
   const fetchUsers = () => {
     setLoading(true);
-    getUsers()
-      .then((all) => setUsers(all.filter((u) => u.role === "librarian")))
-      .catch(() => {})
+    getUsers("librarian")
+      .then(setUsers)
+      .catch(() => setUsers([]))
       .finally(() => setLoading(false));
   };
 

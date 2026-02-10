@@ -1,9 +1,14 @@
 from rest_framework import serializers
-from .models import Book, Shelf, ShelfBook, Borrow
+from .models import Book, Shelf, ShelfBook, Borrow, AudioBookUpload
 
 
 # User/Admin/Librarian/Member serializers removed; identity is managed by OpenLibraryAuthService and passed via JWT.
 
+
+class AudioBookUploadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AudioBookUpload
+        fields = ['id', 'file', 'title', 'created_at', 'borrower_username']
 
 
 class BookSerializer(serializers.ModelSerializer):

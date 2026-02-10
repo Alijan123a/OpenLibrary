@@ -3,16 +3,30 @@
 import { useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import PageHeader from "@/components/ui/PageHeader";
+import { uploadAudioFile } from "@/lib/audioUpload";
 
 function UploadContent() {
   const [file, setFile] = useState<File | null>(null);
+  const [title, setTitle] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) return;
-    // Placeholder: in a real implementation this would call an upload API
-    setSubmitted(true);
+    setLoading(true);
+    setError("");
+    try {
+      await uploadAudioFile(file, title || undefined);
+      setSubmitted(true);
+      setFile(null);
+      setTitle("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "خطا در آپلود فایل");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -31,7 +45,7 @@ function UploadContent() {
               <h3 className="text-sm font-semibold text-gray-800 mb-1">فایل با موفقیت ارسال شد</h3>
               <p className="text-xs text-gray-500 mb-4">فایل شما برای بررسی ارسال شده است.</p>
               <button
-                onClick={() => { setFile(null); setSubmitted(false); }}
+                onClick={() => setSubmitted(false)}
                 className="text-sm text-blue-600 hover:text-blue-800 font-medium"
               >
                 ارسال فایل دیگر
@@ -39,6 +53,21 @@ function UploadContent() {
             </div>
           ) : (
             <form onSubmit={handleSubmit}>
+              {error && (
+                <div className="mb-4 p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">
+                  {error}
+                </div>
+              )}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">عنوان (اختیاری)</label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="عنوان کتاب صوتی"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400"
+                />
+              </div>
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">فایل صوتی</label>
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
@@ -63,10 +92,10 @@ function UploadContent() {
 
               <button
                 type="submit"
-                disabled={!file}
+                disabled={!file || loading}
                 className="w-full py-2.5 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-40"
               >
-                ارسال فایل
+                {loading ? "در حال ارسال..." : "ارسال فایل"}
               </button>
             </form>
           )}

@@ -203,3 +203,15 @@ class Borrow(models.Model):
         self.return_date = now()
         self.shelf_book.return_book()
         self.save()
+
+
+class AudioBookUpload(models.Model):
+    """Student audio book uploads. Identity from JWT (Auth Service)."""
+    borrower_id = models.CharField(max_length=64, null=True, blank=True)
+    borrower_username = models.CharField(max_length=150, null=True, blank=True)
+    file = models.FileField(upload_to="audio_books/%Y/%m/")
+    title = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.title or self.file.name} ({self.borrower_username})"

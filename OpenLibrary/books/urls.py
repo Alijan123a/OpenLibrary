@@ -3,7 +3,7 @@ from django.views.generic import RedirectView
 from rest_framework.routers import DefaultRouter
 
 from .views import (
-    BookViewSet, ShelfViewSet, ShelfBookViewSet, BorrowViewSet,
+    BookViewSet, ShelfViewSet, ShelfBookViewSet, BorrowViewSet, AudioBookUploadViewSet,
 )
 
 
@@ -16,6 +16,7 @@ router.register(r'books', BookViewSet)
 router.register(r'shelves', ShelfViewSet)
 router.register(r'shelf-books', ShelfBookViewSet)
 router.register(r'borrow', BorrowViewSet)
+router.register(r'audio-uploads', AudioBookUploadViewSet)
 
 
 
