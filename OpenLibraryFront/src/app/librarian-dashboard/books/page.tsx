@@ -41,8 +41,8 @@ function BookModal({
       setPublisher(book.publisher || "");
       setLanguage(book.language || "Persian");
       setDescription(book.description || "");
-      setPublishedDate(book.publishedDate || "");
-      setTotalCopies(book.totalCopies || 1);
+      setPublishedDate(book.published_date || "");
+      setTotalCopies(book.total_copies || 1);
       setPrice(book.price || 0);
     } else {
       setTitle(""); setAuthor(""); setIsbn(""); setPublisher(""); setLanguage("Persian");
@@ -60,7 +60,7 @@ function BookModal({
     setError("");
     try {
       const data: CreateBookData = {
-        title, author, isbn, publisher, language, description, publishedDate, totalCopies, price, coverImage,
+        title, author, isbn, publisher, language, description, published_date: publishedDate, total_copies: totalCopies, price, cover_image: coverImage,
       };
       if (book) {
         await booksApi.updateBook(book.id, data);
@@ -181,14 +181,14 @@ function BooksContent() {
     { key: "title", header: "عنوان", render: (r) => <span className="font-medium">{r.title}</span> },
     { key: "author", header: "نویسنده" },
     { key: "isbn", header: "ISBN", className: "font-mono text-xs" },
-    { key: "totalCopies", header: "نسخه", className: "w-16 text-center" },
+    { key: "total_copies", header: "نسخه", className: "w-16 text-center" },
     {
       key: "qr",
       header: "QR",
       className: "w-16",
       render: (r) => {
         // Use qr_code_id from the API response
-        const qrId = (r as unknown as Record<string, unknown>).qr_code_id as string | undefined;
+        const qrId = r.qr_code_id;
         if (!qrId) return "—";
         return (
           <img src={getQrImageUrl(qrId)} alt="QR" className="w-10 h-10" />

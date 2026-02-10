@@ -70,7 +70,7 @@ function ReportsContent() {
     { key: "id", header: "#", render: (r) => r.id, className: "w-12" },
     { key: "title", header: "عنوان", render: (r) => <span className="font-medium">{r.title}</span> },
     { key: "author", header: "نویسنده" },
-    { key: "totalCopies", header: "تعداد نسخه", className: "w-20 text-center" },
+    { key: "total_copies", header: "تعداد نسخه", className: "w-20 text-center" },
   ];
 
   return (

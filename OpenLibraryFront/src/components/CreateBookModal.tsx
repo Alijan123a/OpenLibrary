@@ -15,13 +15,13 @@ export default function CreateBookModal({ isOpen, onClose, onSuccess }: CreateBo
   const [formData, setFormData] = useState<CreateBookData>({
     title: "",
     author: "",
-    publishedDate: "",
+    published_date: "",
     isbn: "",
     description: "",
     publisher: "",
     language: "Persian",
-    coverImage: null,
-    totalCopies: 1,
+    cover_image: null,
+    total_copies: 1,
     price: 0
   });
   
@@ -38,7 +38,7 @@ export default function CreateBookModal({ isOpen, onClose, onSuccess }: CreateBo
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
-    setFormData(prev => ({ ...prev, coverImage: file }));
+    setFormData(prev => ({ ...prev, cover_image: file }));
   };
 
   const validateForm = (): boolean => {
@@ -56,8 +56,8 @@ export default function CreateBookModal({ isOpen, onClose, onSuccess }: CreateBo
       newErrors.description = "توضیحات کتاب الزامی است";
     }
 
-    if (formData.totalCopies < 1) {
-      newErrors.totalCopies = "تعداد کل نسخه‌ها باید حداقل 1 باشد";
+    if (formData.total_copies < 1) {
+      newErrors.total_copies = "تعداد کل نسخه‌ها باید حداقل 1 باشد";
     }
 
     if (formData.price < 0) {
@@ -84,13 +84,13 @@ export default function CreateBookModal({ isOpen, onClose, onSuccess }: CreateBo
       setFormData({
         title: "",
         author: "",
-        publishedDate: "",
+        published_date: "",
         isbn: "",
         description: "",
         publisher: "",
         language: "Persian",
-        coverImage: null,
-        totalCopies: 1,
+        cover_image: null,
+        total_copies: 1,
         price: 0
       });
       setErrors({});
@@ -173,8 +173,8 @@ export default function CreateBookModal({ isOpen, onClose, onSuccess }: CreateBo
           <div className="relative">
             <input
               type="date"
-              value={formData.publishedDate}
-              onChange={(e) => handleInputChange("publishedDate", e.target.value)}
+              value={formData.published_date}
+              onChange={(e) => handleInputChange("published_date", e.target.value)}
               className="w-full px-4 py-3 pl-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
               disabled={isSubmitting}
             />
@@ -274,15 +274,15 @@ export default function CreateBookModal({ isOpen, onClose, onSuccess }: CreateBo
             <input
               type="number"
               min="1"
-              value={formData.totalCopies}
-              onChange={(e) => handleInputChange("totalCopies", parseInt(e.target.value) || 0)}
+              value={formData.total_copies}
+              onChange={(e) => handleInputChange("total_copies", parseInt(e.target.value) || 0)}
               className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
-                errors.totalCopies ? "border-red-500" : "border-gray-300"
+                errors.total_copies ? "border-red-500" : "border-gray-300"
               }`}
               disabled={isSubmitting}
             />
             <p className="mt-1 text-xs text-gray-500">تعداد کل نسخه‌ها در تمام قفسه‌ها + انبار</p>
-            {errors.totalCopies && <p className="mt-1 text-sm text-red-500">{errors.totalCopies}</p>}
+            {errors.total_copies && <p className="mt-1 text-sm text-red-500">{errors.total_copies}</p>}
           </div>
 
           {/* Price */}
