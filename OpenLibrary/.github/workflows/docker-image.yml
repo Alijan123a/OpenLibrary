@@ -1,0 +1,96 @@
+
+name: Build, Test, and Release Docker Image
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+#      - name: Log in to Docker Hub (Optional)
+#        if: success()
+#        uses: docker/login-action@v2
+#        with:
+#          username: ${{ secrets.DOCKER_USERNAME }}
+#          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build Docker Image with Tag
+        run: |
+          VERSION=${{ github.ref_name }} 
+          docker build --file Dockerfile --tag open-library-system:$VERSION .
+
+      - name: Run Tests Inside Docker
+        run: |
+          VERSION=${{ github.ref_name }}
+          docker run --rm docker.io/library/open-library-system:$VERSION python manage.py test
+
+      - name: Save Docker Image as a Tar File
+        run: |
+          VERSION=${{ github.ref_name }}
+          docker save docker.io/library/open-library-system:$VERSION -o open-library-system-$VERSION.tar
+
+      - name: Configure Git User
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"  
+
+      - name: Get Latest Tag
+        id: get_latest_tag
+        run: |
+          git fetch --tags
+          latest_tag=$(git rev-list --tags --max-count=1 | xargs git describe --tags 2>/dev/null || echo "v0.0.0")
+          echo "LATEST_TAG=$latest_tag" >> $GITHUB_ENV
+          echo "LATEST_TAG=$latest_tag"
+#         latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+
+
+      - name: Generate Next Tag
+        id: generate_tag
+        run: |
+          IFS='.' read -ra parts <<< "${LATEST_TAG#v}"
+          major=${parts[0]}
+          echo $major
+          minor=${parts[1]}
+          echo $minor
+          patch=${parts[2]}
+          echo $patch
+          new_patch=$((patch+1))
+          new_tag="v$major.$minor.$new_patch"
+          echo "NEW_TAG=$new_tag" >> $GITHUB_ENV
+          echo "NEW_TAG=$new_tag"
+
+      - name: Create and Push Tag
+        run: |
+          git tag -a ${{ env.NEW_TAG }} -m "Version ${{ env.NEW_TAG }}"
+          git push origin ${{ env.NEW_TAG }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+
+      - name: Create GitHub Release and Upload Docker Image
+        uses: softprops/action-gh-release@v2
+        with:
+          files: open-library-system-${{ github.ref_name }}.tar
+          tag_name: ${{ env.NEW_TAG }}
+          name: Release ${{ env.NEW_TAG }}
+          body: |
+            New Docker Image Released!
+            - Version: `${{ env.NEW_TAG }}`
+            - Download the `.tar` file to load the Docker image manually.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}  # Use a PAT with the correct permissions
+
