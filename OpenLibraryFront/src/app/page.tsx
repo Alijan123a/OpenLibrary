@@ -1,25 +1,25 @@
-export default function Home() {
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { getAuthToken } from "@/lib/auth";
+
+export default function HomePage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const token = getAuthToken();
+    if (token) {
+      // Already logged in, redirect to login which will redirect to dashboard
+      router.push("/login");
+    } else {
+      router.push("/login");
+    }
+  }, [router]);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-      <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
-        <h1 className="text-3xl font-bold text-gray-800 mb-4 text-center">
-          به کتابخانه آنلاین خوش آمدید
-        </h1>
-        <p className="text-gray-600 text-center mb-6">
-          سامانه مدیریت کتابخانه دیجیتال شما
-        </p>
-        <div className="space-y-3">
-          <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition duration-200">
-            مرور کتاب‌ها
-          </button>
-          <button className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md transition duration-200">
-            ورود کتابدار
-          </button>
-          <button className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-md transition duration-200">
-            ورود دانشجو
-          </button>
-        </div>
-      </div>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <p className="text-sm text-gray-400">در حال انتقال...</p>
     </div>
   );
 }

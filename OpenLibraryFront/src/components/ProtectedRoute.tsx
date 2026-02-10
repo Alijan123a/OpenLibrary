@@ -1,24 +1,55 @@
 "use client";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { validateRefreshToken } from "@/lib/auth";
 
-export default function ProtectedRoute({ children }) {
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { getAuthToken, validateRefreshToken } from "@/lib/auth";
+import { checkRole } from "@/lib/role";
+import type { UserRole } from "@/lib/role";
+import LoadingSpinner from "./ui/LoadingSpinner";
+
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  allowedRoles?: UserRole[];
+}
+
+export default function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
+  const [authorized, setAuthorized] = useState(false);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    const token = localStorage.getItem("jwt");
+    async function verify() {
+      const token = getAuthToken();
+      if (!token) {
+        router.push("/login");
+        return;
+      }
 
-    if (!token) {
-      router.push("/login"); // Redirect to login if token is missing
-      return;
+      validateRefreshToken();
+
+      if (allowedRoles && allowedRoles.length > 0) {
+        const role = await checkRole(token);
+        if (!role || !allowedRoles.includes(role)) {
+          router.push("/unauthorized");
+          return;
+        }
+      }
+
+      setAuthorized(true);
+      setLoading(false);
     }
+    verify();
+  }, [router, allowedRoles]);
 
-    validateRefreshToken();
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
 
-    const interval = setInterval(validateRefreshToken, 5 * 60 * 1000);
-    return () => clearInterval(interval); // Cleanup on unmount
-  }, []);
+  if (!authorized) return null;
 
   return <>{children}</>;
 }
