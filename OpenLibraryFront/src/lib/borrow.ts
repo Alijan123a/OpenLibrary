@@ -14,7 +14,7 @@ export interface Borrow {
   borrower_role: string | null;
 }
 
-/** Fetch all borrows (student sees their own, librarian sees all). */
+/** Fetch all borrows (student sees their own, librarian sees all). (Handles paginated response from Django REST Framework) */
 export async function getBorrows(): Promise<Borrow[]> {
   const token = getAuthToken();
   if (!token) throw new Error("Not authenticated");
@@ -24,7 +24,10 @@ export async function getBorrows(): Promise<Borrow[]> {
   });
 
   if (!res.ok) throw new Error(`Failed to fetch borrows: ${res.status}`);
-  return res.json();
+  const data = await res.json();
+  if (Array.isArray(data)) return data;
+  if (data?.results && Array.isArray(data.results)) return data.results;
+  return [];
 }
 
 /** Create a new borrow record. */

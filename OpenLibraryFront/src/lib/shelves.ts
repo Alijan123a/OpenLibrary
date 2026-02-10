@@ -23,13 +23,16 @@ function authHeaders() {
   return { Authorization: `Bearer ${token}` };
 }
 
-/** Fetch all shelves. */
+/** Fetch all shelves. (Handles paginated response from Django REST Framework) */
 export async function getShelves(): Promise<Shelf[]> {
   const res = await fetch(`${API_BASE_URL}/api/shelves/`, {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error(`Failed to fetch shelves: ${res.status}`);
-  return res.json();
+  const data = await res.json();
+  if (Array.isArray(data)) return data;
+  if (data?.results && Array.isArray(data.results)) return data.results;
+  return [];
 }
 
 /** Create a shelf. */
@@ -63,13 +66,16 @@ export async function deleteShelf(id: number): Promise<void> {
   if (!res.ok) throw new Error(`Failed to delete shelf: ${res.status}`);
 }
 
-/** Fetch all shelf-book assignments. */
+/** Fetch all shelf-book assignments. (Handles paginated response from Django REST Framework) */
 export async function getShelfBooks(): Promise<ShelfBook[]> {
   const res = await fetch(`${API_BASE_URL}/api/shelf-books/`, {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error(`Failed to fetch shelf-books: ${res.status}`);
-  return res.json();
+  const data = await res.json();
+  if (Array.isArray(data)) return data;
+  if (data?.results && Array.isArray(data.results)) return data.results;
+  return [];
 }
 
 /** Assign a book to a shelf. */

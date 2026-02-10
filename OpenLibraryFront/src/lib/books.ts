@@ -74,7 +74,7 @@ export const booksApi = {
     return response.json();
   },
 
-  // Get all books
+  // Get all books (handles paginated response from Django REST Framework)
   getBooks: async (): Promise<Book[]> => {
     const token = getAuthToken();
     if (!token) {
@@ -91,7 +91,11 @@ export const booksApi = {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     
-    return response.json();
+    const data = await response.json();
+    // Django REST Framework returns { count, next, previous, results } when pagination is enabled
+    if (Array.isArray(data)) return data;
+    if (data?.results && Array.isArray(data.results)) return data.results;
+    return [];
   },
 
   // Get book by ID
