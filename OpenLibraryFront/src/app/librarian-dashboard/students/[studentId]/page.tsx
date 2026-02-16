@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import DashboardLayout from "@/components/DashboardLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import StatusBadge from "@/components/ui/StatusBadge";
-import { getUserById, type User } from "@/lib/users";
-import { getBorrows, type Borrow } from "@/lib/borrow";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { getUserById, updateUser, deleteUser, type User } from "@/lib/users";
+import { getBorrows } from "@/lib/borrow";
 
 const BORROW_DAYS = 14;
 const PENALTY_PER_DAY = 5000;
@@ -34,7 +35,66 @@ function toMoney(amount: number) {
   return `${new Intl.NumberFormat("fa-IR").format(amount)} ریال`;
 }
 
+function EditStudentModal({
+  open,
+  user,
+  saving,
+  error,
+  onClose,
+  onSave,
+}: {
+  open: boolean;
+  user: User | null;
+  saving: boolean;
+  error: string;
+  onClose: () => void;
+  onSave: (payload: { username: string; email: string }) => Promise<void>;
+}) {
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    setUsername(user?.username || "");
+    setEmail(user?.email || "");
+  }, [open, user]);
+
+  if (!open) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await onSave({ username, email });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="fixed inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-lg shadow-lg max-w-sm w-full mx-4 p-6">
+        <h3 className="text-base font-semibold text-gray-900 mb-4">ویرایش دانشجو</h3>
+        {error && <div className="mb-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{error}</div>}
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">نام کاربری *</label>
+            <input value={username} onChange={(e) => setUsername(e.target.value)} required className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">ایمیل</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400" />
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button type="submit" disabled={saving} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg disabled:opacity-50">
+              {saving ? "..." : "ذخیره"}
+            </button>
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">انصراف</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function StudentDetailsContent() {
+  const router = useRouter();
   const params = useParams<{ studentId: string | string[] }>();
   const searchParams = useSearchParams();
   const routeStudentId = Array.isArray(params.studentId) ? params.studentId[0] : params.studentId;
@@ -45,6 +105,11 @@ function StudentDetailsContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [warning, setWarning] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!studentId || Number.isNaN(studentId)) {
@@ -142,15 +207,56 @@ function StudentDetailsContent() {
     { key: "penalty", header: "جریمه", render: (row) => row.penalty > 0 ? toMoney(row.penalty) : "—" },
   ];
 
+  const handleEditSave = async (payload: { username: string; email: string }) => {
+    setSavingEdit(true);
+    setActionError("");
+    try {
+      const updated = await updateUser(studentId, payload);
+      setStudent(updated);
+      setEditOpen(false);
+    } catch (saveError: unknown) {
+      setActionError(saveError instanceof Error ? saveError.message : "خطا در ویرایش دانشجو");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleDeleteStudent = async () => {
+    setDeleting(true);
+    setActionError("");
+    try {
+      await deleteUser(studentId);
+      router.push("/librarian-dashboard/students");
+    } catch (deleteError: unknown) {
+      setActionError(deleteError instanceof Error ? deleteError.message : "خطا در حذف دانشجو");
+      setDeleting(false);
+      setDeleteOpen(false);
+    }
+  };
+
   return (
     <div>
       <PageHeader
         title="پرونده دانشجو"
         description={student ? `اطلاعات امانت‌ها و جریمه‌های ${student.username}` : "مشاهده تاریخچه امانت و جریمه‌ها"}
         action={
-          <Link href="/librarian-dashboard/students" className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
-            بازگشت به مدیریت دانشجویان
-          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setEditOpen(true)}
+              className="px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg"
+            >
+              ویرایش دانشجو
+            </button>
+            <button
+              onClick={() => setDeleteOpen(true)}
+              className="px-4 py-2 text-sm font-medium text-red-600 border border-red-300 rounded-lg hover:bg-red-50"
+            >
+              حذف دانشجو
+            </button>
+            <Link href="/librarian-dashboard/students" className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
+              بازگشت به مدیریت دانشجویان
+            </Link>
+          </div>
         }
       />
 
@@ -162,6 +268,11 @@ function StudentDetailsContent() {
       {warning && !error && (
         <div className="mb-4 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
           {warning}
+        </div>
+      )}
+      {actionError && (
+        <div className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+          {actionError}
         </div>
       )}
 
@@ -200,6 +311,24 @@ function StudentDetailsContent() {
         keyExtractor={(row) => row.id}
         emptyTitle="تاریخچه امانتی یافت نشد"
         emptyDescription="این دانشجو هنوز امانتی ثبت‌شده‌ای ندارد."
+      />
+      <EditStudentModal
+        open={editOpen}
+        user={student}
+        saving={savingEdit}
+        error={actionError}
+        onClose={() => setEditOpen(false)}
+        onSave={handleEditSave}
+      />
+      <ConfirmDialog
+        open={deleteOpen}
+        title="حذف دانشجو"
+        message="آیا مطمئن هستید که می‌خواهید این دانشجو را حذف کنید؟"
+        confirmLabel="حذف"
+        danger
+        loading={deleting}
+        onConfirm={handleDeleteStudent}
+        onCancel={() => setDeleteOpen(false)}
       />
     </div>
   );

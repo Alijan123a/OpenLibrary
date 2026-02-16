@@ -5,9 +5,8 @@ import Link from "next/link";
 import DashboardLayout from "@/components/DashboardLayout";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import PageHeader from "@/components/ui/PageHeader";
-import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import StatusBadge from "@/components/ui/StatusBadge";
-import { getUsers, createUser, updateUser, deleteUser, type User } from "@/lib/users";
+import { getUsers, createUser, updateUser, type User } from "@/lib/users";
 
 /* ── Student form modal ── */
 function StudentModal({
@@ -101,9 +100,6 @@ function StudentsContent() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
-  const [deleting, setDeleting] = useState(false);
   const [searchText, setSearchText] = useState("");
 
   const fetchUsers = () => {
@@ -124,15 +120,6 @@ function StudentsContent() {
     return username.includes(normalizedSearch) || email.includes(normalizedSearch) || String(user.id).includes(normalizedSearch);
   });
 
-  const handleDelete = async () => {
-    if (deleteId === null) return;
-    setDeleting(true);
-    await deleteUser(deleteId);
-    fetchUsers();
-    setDeleting(false);
-    setDeleteId(null);
-  };
-
   const columns: Column<User>[] = [
     { key: "id", header: "#", render: (r) => r.id, className: "w-12" },
     { key: "username", header: "نام کاربری", render: (r) => <span className="font-medium">{r.username}</span> },
@@ -149,7 +136,6 @@ function StudentsContent() {
       header: "",
       render: (r) => (
         <div className="flex gap-2">
-          <button onClick={() => { setEditingUser(r); setModalOpen(true); }} className="text-xs text-blue-600 hover:text-blue-800 font-medium">ویرایش</button>
           <Link
             href={{
               pathname: `/librarian-dashboard/students/${r.id}`,
@@ -159,7 +145,6 @@ function StudentsContent() {
           >
             مشاهده
           </Link>
-          <button onClick={() => setDeleteId(r.id)} className="text-xs text-red-500 hover:text-red-700 font-medium">حذف</button>
         </div>
       ),
     },
@@ -179,24 +164,14 @@ function StudentsContent() {
               placeholder="جستجو بر اساس نام کاربری، ایمیل یا شناسه"
               className="w-72 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400"
             />
-            <button onClick={() => { setEditingUser(null); setModalOpen(true); }} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg">
+            <button onClick={() => setModalOpen(true)} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg">
               افزودن دانشجو
             </button>
           </div>
         }
       />
       <DataTable columns={columns} data={filteredUsers} loading={loading} keyExtractor={(r) => r.id} emptyTitle="دانشجویی یافت نشد" />
-      <StudentModal open={modalOpen} student={editingUser} onClose={() => setModalOpen(false)} onSaved={fetchUsers} />
-      <ConfirmDialog
-        open={deleteId !== null}
-        title="حذف دانشجو"
-        message="آیا مطمئن هستید که می‌خواهید این حساب کاربری را حذف کنید؟"
-        confirmLabel="حذف"
-        danger
-        loading={deleting}
-        onConfirm={handleDelete}
-        onCancel={() => setDeleteId(null)}
-      />
+      <StudentModal open={modalOpen} student={null} onClose={() => setModalOpen(false)} onSaved={fetchUsers} />
     </div>
   );
 }
