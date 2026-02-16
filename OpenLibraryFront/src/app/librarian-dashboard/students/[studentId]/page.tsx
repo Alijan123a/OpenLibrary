@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import DashboardLayout from "@/components/DashboardLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column } from "@/components/ui/DataTable";
@@ -35,13 +35,16 @@ function toMoney(amount: number) {
 }
 
 function StudentDetailsContent() {
-  const params = useParams<{ studentId: string }>();
-  const studentId = Number(params.studentId);
+  const params = useParams<{ studentId: string | string[] }>();
+  const searchParams = useSearchParams();
+  const routeStudentId = Array.isArray(params.studentId) ? params.studentId[0] : params.studentId;
+  const studentId = Number(routeStudentId);
 
   const [student, setStudent] = useState<User | null>(null);
   const [rows, setRows] = useState<StudentBorrowRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [warning, setWarning] = useState("");
 
   useEffect(() => {
     if (!studentId || Number.isNaN(studentId)) {
@@ -53,15 +56,32 @@ function StudentDetailsContent() {
     async function load() {
       setLoading(true);
       setError("");
-      try {
-        const [studentData, allBorrows] = await Promise.all([
-          getUserById(studentId),
-          getBorrows(),
-        ]);
-        setStudent(studentData);
+      setWarning("");
 
+      const fallbackUsername = searchParams.get("username") || "";
+      const fallbackEmail = searchParams.get("email") || "";
+      if (fallbackUsername || fallbackEmail) {
+        setStudent({
+          id: studentId,
+          username: fallbackUsername || `student-${studentId}`,
+          email: fallbackEmail,
+          role: "student",
+          is_active: true,
+        });
+      }
+
+      try {
+        const studentData = await getUserById(studentId);
+        setStudent(studentData);
+      } catch {
+        // Keep page usable even if user-details endpoint is unavailable.
+        setWarning("اطلاعات پروفایل دانشجو از سرویس احراز هویت دریافت نشد، اما تاریخچه امانت قابل نمایش است.");
+      }
+
+      try {
+        const allBorrows = await getBorrows();
         const now = new Date();
-        const studentBorrows = allBorrows.filter((borrow) => String(borrow.borrower_id) === String(studentData.id));
+        const studentBorrows = allBorrows.filter((borrow) => String(borrow.borrower_id) === String(studentId));
         const mappedRows = studentBorrows.map((borrow) => {
           const borrowedAt = new Date(borrow.borrowed_date);
           const dueDate = new Date(borrowedAt.getTime() + BORROW_DAYS * DAY_MS);
@@ -85,14 +105,15 @@ function StudentDetailsContent() {
         mappedRows.sort((a, b) => b.id - a.id);
         setRows(mappedRows);
       } catch (loadError: unknown) {
-        setError(loadError instanceof Error ? loadError.message : "خطا در بارگذاری اطلاعات دانشجو");
+        const message = loadError instanceof Error ? loadError.message : "خطا در بارگذاری اطلاعات دانشجو";
+        setError(`خطا در دریافت تاریخچه امانت: ${message}`);
       } finally {
         setLoading(false);
       }
     }
 
     load();
-  }, [studentId]);
+  }, [studentId, searchParams]);
 
   const stats = useMemo(() => {
     const total = rows.length;
@@ -136,6 +157,11 @@ function StudentDetailsContent() {
       {error && (
         <div className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
           {error}
+        </div>
+      )}
+      {warning && !error && (
+        <div className="mb-4 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+          {warning}
         </div>
       )}
 

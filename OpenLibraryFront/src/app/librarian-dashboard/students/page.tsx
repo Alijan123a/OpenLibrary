@@ -150,7 +150,15 @@ function StudentsContent() {
       render: (r) => (
         <div className="flex gap-2">
           <button onClick={() => { setEditingUser(r); setModalOpen(true); }} className="text-xs text-blue-600 hover:text-blue-800 font-medium">ویرایش</button>
-          <Link href={`/librarian-dashboard/students/${r.id}`} className="text-xs text-gray-700 hover:text-gray-900 font-medium">مشاهده</Link>
+          <Link
+            href={{
+              pathname: `/librarian-dashboard/students/${r.id}`,
+              query: { username: r.username, email: r.email || "" },
+            }}
+            className="text-xs text-gray-700 hover:text-gray-900 font-medium"
+          >
+            مشاهده
+          </Link>
           <button onClick={() => setDeleteId(r.id)} className="text-xs text-red-500 hover:text-red-700 font-medium">حذف</button>
         </div>
       ),
