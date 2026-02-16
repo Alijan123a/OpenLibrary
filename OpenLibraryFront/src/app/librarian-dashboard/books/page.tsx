@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import DashboardLayout from "@/components/DashboardLayout";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import PageHeader from "@/components/ui/PageHeader";
-import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { booksApi, type Book, type CreateBookData } from "@/lib/books";
-import { getQrImageUrl } from "@/lib/qr";
+import { getShelfBooks, type ShelfBook } from "@/lib/shelves";
+import { getBorrows, type Borrow } from "@/lib/borrow";
 
 /* ── Book form modal ── */
 function BookModal({
@@ -147,61 +148,68 @@ function BookModal({
 /* ── Books page ── */
 function BooksContent() {
   const [books, setBooks] = useState<Book[]>([]);
+  const [shelfBooks, setShelfBooks] = useState<ShelfBook[]>([]);
+  const [borrows, setBorrows] = useState<Borrow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingBook, setEditingBook] = useState<Book | null>(null);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
-  const [deleting, setDeleting] = useState(false);
 
   const fetchBooks = () => {
     setLoading(true);
-    booksApi.getBooks().then(setBooks).catch(() => {}).finally(() => setLoading(false));
+    Promise.all([booksApi.getBooks(), getShelfBooks(), getBorrows()])
+      .then(([booksData, shelfBooksData, borrowsData]) => {
+        setBooks(booksData);
+        setShelfBooks(shelfBooksData);
+        setBorrows(borrowsData);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => { fetchBooks(); }, []);
-
-  const handleDelete = async () => {
-    if (deleteId === null) return;
-    setDeleting(true);
-    try {
-      await booksApi.deleteBook(deleteId);
-      fetchBooks();
-    } catch { /* ignore */ }
-    setDeleting(false);
-    setDeleteId(null);
-  };
 
   const filtered = books.filter(
     (b) => b.title.toLowerCase().includes(search.toLowerCase()) || b.author.toLowerCase().includes(search.toLowerCase())
   );
 
-  const columns: Column<Book>[] = [
-    { key: "id", header: "#", render: (r) => r.id, className: "w-12" },
+  const shelfBookToBook = new Map<number, number>();
+  for (const sb of shelfBooks) {
+    shelfBookToBook.set(sb.id, sb.book);
+  }
+
+  const borrowedByBook = new Map<number, number>();
+  for (const b of borrows) {
+    if (b.return_date) continue;
+    const bookId = shelfBookToBook.get(b.shelf_book);
+    if (!bookId) continue;
+    borrowedByBook.set(bookId, (borrowedByBook.get(bookId) || 0) + 1);
+  }
+
+  type BookRow = Book & { borrowed_count: number; remaining_count: number };
+  const rows: BookRow[] = filtered.map((book) => {
+    const borrowedCount = borrowedByBook.get(book.id) || 0;
+    return {
+      ...book,
+      borrowed_count: borrowedCount,
+      remaining_count: Math.max((book.total_copies || 0) - borrowedCount, 0),
+    };
+  });
+
+  const columns: Column<BookRow>[] = [
+    { key: "id", header: "شماره", render: (r) => r.id, className: "w-14" },
     { key: "title", header: "عنوان", render: (r) => <span className="font-medium">{r.title}</span> },
     { key: "author", header: "نویسنده" },
-    { key: "isbn", header: "ISBN", className: "font-mono text-xs" },
-    { key: "total_copies", header: "نسخه", className: "w-16 text-center" },
-    {
-      key: "qr",
-      header: "QR",
-      className: "w-16",
-      render: (r) => {
-        // Use qr_code_id from the API response
-        const qrId = r.qr_code_id;
-        if (!qrId) return "—";
-        return (
-          <img src={getQrImageUrl(qrId)} alt="QR" className="w-10 h-10" />
-        );
-      },
-    },
+    { key: "total_copies", header: "تعداد موجود", className: "w-28 text-center" },
+    { key: "borrowed_count", header: "قرض گرفته شده", className: "w-28 text-center" },
+    { key: "remaining_count", header: "باقیمانده", className: "w-24 text-center" },
     {
       key: "actions",
       header: "",
       render: (r) => (
         <div className="flex gap-2">
-          <button onClick={() => { setEditingBook(r); setModalOpen(true); }} className="text-xs text-blue-600 hover:text-blue-800 font-medium">ویرایش</button>
-          <button onClick={() => setDeleteId(r.id)} className="text-xs text-red-500 hover:text-red-700 font-medium">حذف</button>
+          <Link href={`/librarian-dashboard/books/${r.id}`} className="text-xs text-gray-700 hover:text-gray-900 font-medium">
+            مشاهده
+          </Link>
         </div>
       ),
     },
@@ -214,7 +222,7 @@ function BooksContent() {
         description="لیست تمامی کتاب‌های کتابخانه"
         action={
           <button
-            onClick={() => { setEditingBook(null); setModalOpen(true); }}
+            onClick={() => setModalOpen(true)}
             className="px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg"
           >
             افزودن کتاب
@@ -235,7 +243,7 @@ function BooksContent() {
 
       <DataTable
         columns={columns}
-        data={filtered}
+        data={rows}
         loading={loading}
         keyExtractor={(r) => r.id}
         emptyTitle="کتابی یافت نشد"
@@ -244,20 +252,9 @@ function BooksContent() {
 
       <BookModal
         open={modalOpen}
-        book={editingBook}
+        book={null}
         onClose={() => setModalOpen(false)}
         onSaved={fetchBooks}
-      />
-
-      <ConfirmDialog
-        open={deleteId !== null}
-        title="حذف کتاب"
-        message="آیا مطمئن هستید که می‌خواهید این کتاب را حذف کنید؟ این عمل قابل بازگشت نیست."
-        confirmLabel="حذف"
-        danger
-        loading={deleting}
-        onConfirm={handleDelete}
-        onCancel={() => setDeleteId(null)}
       />
     </div>
   );
