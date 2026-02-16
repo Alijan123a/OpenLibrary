@@ -87,6 +87,8 @@ MIDDLEWARE = [
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # Allow Next.js frontend
     "http://127.0.0.1:3000",
+    "http://localhost:3001",  # Next.js fallback port when 3000 is busy
+    "http://127.0.0.1:3001",
     'http://localhost:9000', # Allow Vue.js frontend (Quasar)
 ]
 
