@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import DashboardLayout from "@/components/DashboardLayout";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import PageHeader from "@/components/ui/PageHeader";
@@ -103,6 +104,7 @@ function StudentsContent() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [searchText, setSearchText] = useState("");
 
   const fetchUsers = () => {
     setLoading(true);
@@ -113,6 +115,14 @@ function StudentsContent() {
   };
 
   useEffect(() => { fetchUsers(); }, []);
+
+  const normalizedSearch = searchText.trim().toLowerCase();
+  const filteredUsers = users.filter((user) => {
+    if (!normalizedSearch) return true;
+    const username = user.username?.toLowerCase() || "";
+    const email = user.email?.toLowerCase() || "";
+    return username.includes(normalizedSearch) || email.includes(normalizedSearch) || String(user.id).includes(normalizedSearch);
+  });
 
   const handleDelete = async () => {
     if (deleteId === null) return;
@@ -140,6 +150,7 @@ function StudentsContent() {
       render: (r) => (
         <div className="flex gap-2">
           <button onClick={() => { setEditingUser(r); setModalOpen(true); }} className="text-xs text-blue-600 hover:text-blue-800 font-medium">ویرایش</button>
+          <Link href={`/librarian-dashboard/students/${r.id}`} className="text-xs text-gray-700 hover:text-gray-900 font-medium">مشاهده</Link>
           <button onClick={() => setDeleteId(r.id)} className="text-xs text-red-500 hover:text-red-700 font-medium">حذف</button>
         </div>
       ),
@@ -152,12 +163,21 @@ function StudentsContent() {
         title="مدیریت دانشجویان"
         description="لیست حساب‌های کاربری دانشجویان"
         action={
-          <button onClick={() => { setEditingUser(null); setModalOpen(true); }} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg">
-            افزودن دانشجو
-          </button>
+          <div className="flex items-center gap-3">
+            <input
+              type="text"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              placeholder="جستجو بر اساس نام کاربری، ایمیل یا شناسه"
+              className="w-72 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400"
+            />
+            <button onClick={() => { setEditingUser(null); setModalOpen(true); }} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg">
+              افزودن دانشجو
+            </button>
+          </div>
         }
       />
-      <DataTable columns={columns} data={users} loading={loading} keyExtractor={(r) => r.id} emptyTitle="دانشجویی یافت نشد" />
+      <DataTable columns={columns} data={filteredUsers} loading={loading} keyExtractor={(r) => r.id} emptyTitle="دانشجویی یافت نشد" />
       <StudentModal open={modalOpen} student={editingUser} onClose={() => setModalOpen(false)} onSaved={fetchUsers} />
       <ConfirmDialog
         open={deleteId !== null}

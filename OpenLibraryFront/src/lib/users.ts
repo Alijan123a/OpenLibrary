@@ -35,6 +35,18 @@ export async function getUsers(role?: "admin" | "librarian" | "student"): Promis
   return res.json();
 }
 
+/** Fetch one user by id from Auth Service. */
+export async function getUserById(id: number): Promise<User> {
+  const res = await fetch(`${AUTH_BASE_URL}/api/users/${id}/`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || `Failed to fetch user: ${res.status}`);
+  }
+  return res.json();
+}
+
 /** Create a user via Auth Service. */
 export async function createUser(data: { username: string; password: string; email: string; role: string }): Promise<User> {
   const res = await fetch(`${AUTH_BASE_URL}/api/users/`, {
