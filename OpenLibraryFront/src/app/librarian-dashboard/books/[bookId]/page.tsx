@@ -11,6 +11,7 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { booksApi, type Book, type CreateBookData } from "@/lib/books";
 import { getShelfBooks, type ShelfBook } from "@/lib/shelves";
 import { getBorrows, type Borrow } from "@/lib/borrow";
+import { getQrImageUrl } from "@/lib/qr";
 
 const BORROW_DAYS = 14;
 const PENALTY_PER_DAY = 5000;
@@ -284,15 +285,45 @@ function BookDetailsContent() {
     }
   };
 
+  const handlePrintQr = () => {
+    if (!book?.qr_code_id) {
+      setActionError("این کتاب کد QR ندارد.");
+      return;
+    }
+    setActionError("");
+    const qrUrl = getQrImageUrl(book.qr_code_id);
+    const printWin = window.open("", "_blank");
+    if (!printWin) {
+      setActionError("پنجره پرینت مسدود شده است. لطفاً اجازه پاپ‌آپ را بدهید.");
+      return;
+    }
+    printWin.document.write(`
+      <!DOCTYPE html>
+      <html dir="rtl">
+      <head><meta charset="UTF-8"><title>رمزینه پاسخ سریع - ${(book.title || "").replace(/</g, "&lt;")}</title>
+      <style>body{text-align:center;padding:2rem;font-family:Tahoma,sans-serif;} img{width:200px;height:200px;}</style></head>
+      <body>
+        <h2>${(book.title || "").replace(/</g, "&lt;")}</h2>
+        <p>${(book.author || "").replace(/</g, "&lt;")}</p>
+        <img src="${qrUrl.replace(/"/g, "&quot;")}" alt="QR" onload="setTimeout(function(){window.print();window.close();},500)" onerror="setTimeout(function(){window.print();window.close();},500)" />
+      </body>
+      </html>
+    `);
+    printWin.document.close();
+  };
+
   return (
     <div>
       <PageHeader
         title="پرونده کتاب"
         description={book ? `جزئیات کامل کتاب ${book.title}` : "جزئیات کتاب"}
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button onClick={() => setEditOpen(true)} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg">
               ویرایش کتاب
+            </button>
+            <button onClick={handlePrintQr} className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-400 rounded-lg hover:bg-gray-100">
+              تولید رمزینه پاسخ سریع
             </button>
             <button onClick={() => setDeleteOpen(true)} className="px-4 py-2 text-sm font-medium text-red-600 border border-red-300 rounded-lg hover:bg-red-50">
               حذف کتاب
