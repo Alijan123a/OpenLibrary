@@ -13,6 +13,16 @@ import { getShelfBooks, type ShelfBook } from "@/lib/shelves";
 import { getBorrows, type Borrow } from "@/lib/borrow";
 import { getQrImageUrl } from "@/lib/qr";
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+
+function getCoverImageUrl(coverImage?: string | null): string | null {
+  if (!coverImage) return null;
+  if (coverImage.startsWith("http")) return coverImage;
+  const base = API_BASE_URL.replace(/\/$/, "");
+  const path = coverImage.startsWith("/") ? coverImage : `/${coverImage}`;
+  return `${base}${path}`;
+}
+
 const BORROW_DAYS = 14;
 const PENALTY_PER_DAY = 5000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -363,17 +373,28 @@ function BookDetailsContent() {
 
       <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6">
         <h2 className="text-sm font-semibold text-gray-800 mb-3">مشخصات کامل کتاب</h2>
-        <div className="grid gap-3 md:grid-cols-2 text-sm text-gray-700">
-          <div>شماره: <span className="font-medium">{book?.id ?? "—"}</span></div>
-          <div>عنوان: <span className="font-medium">{book?.title || "—"}</span></div>
-          <div>نویسنده: <span className="font-medium">{book?.author || "—"}</span></div>
-          <div>ISBN: <span className="font-medium">{book?.isbn || "—"}</span></div>
-          <div>ناشر: <span className="font-medium">{book?.publisher || "—"}</span></div>
-          <div>زبان: <span className="font-medium">{book?.language || "—"}</span></div>
-          <div>تاریخ انتشار: <span className="font-medium">{toDateLabel(book?.published_date || null)}</span></div>
-          <div>قیمت: <span className="font-medium">{toMoney(book?.price || 0)}</span></div>
-          <div className="md:col-span-2">توضیحات: <span className="font-medium">{book?.description || "—"}</span></div>
-          <div className="md:col-span-2">کد QR: <span className="font-medium">{book?.qr_code_id || "—"}</span></div>
+        <div className="flex flex-col md:flex-row gap-6">
+          {getCoverImageUrl(book?.cover_image) && (
+            <div className="flex-shrink-0">
+              <img
+                src={getCoverImageUrl(book?.cover_image)!}
+                alt={`جلد ${book?.title || "کتاب"}`}
+                className="w-40 h-56 object-cover rounded-lg border border-gray-200 shadow-sm"
+              />
+            </div>
+          )}
+          <div className="flex-1 grid gap-3 md:grid-cols-2 text-sm text-gray-700">
+            <div>شماره: <span className="font-medium">{book?.id ?? "—"}</span></div>
+            <div>عنوان: <span className="font-medium">{book?.title || "—"}</span></div>
+            <div>نویسنده: <span className="font-medium">{book?.author || "—"}</span></div>
+            <div>ISBN: <span className="font-medium">{book?.isbn || "—"}</span></div>
+            <div>ناشر: <span className="font-medium">{book?.publisher || "—"}</span></div>
+            <div>زبان: <span className="font-medium">{book?.language || "—"}</span></div>
+            <div>تاریخ انتشار: <span className="font-medium">{toDateLabel(book?.published_date || null)}</span></div>
+            <div>قیمت: <span className="font-medium">{toMoney(book?.price || 0)}</span></div>
+            <div className="md:col-span-2">توضیحات: <span className="font-medium">{book?.description || "—"}</span></div>
+            <div className="md:col-span-2">کد QR: <span className="font-medium">{book?.qr_code_id || "—"}</span></div>
+          </div>
         </div>
       </div>
 
