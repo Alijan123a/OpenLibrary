@@ -88,7 +88,7 @@ export async function assignBookToShelf(data: { shelf: number; book: number; cop
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     const msgStr = extractApiErrorMessage(err);
-    if (res.status === 403 && (msgStr?.toLowerCase().includes("authentication") || msgStr?.toLowerCase().includes("credential"))) {
+    if (res.status === 403 && (msgStr?.toLowerCase()?.includes("authentication") || msgStr?.toLowerCase()?.includes("credential"))) {
       throw new Error("احراز هویت ناموفق بود. لطفاً دوباره وارد شوید.");
     }
     throw new Error(msgStr || `Failed to assign book to shelf: ${res.status}`);
