@@ -230,6 +230,10 @@ function AssignModal({
       setError(`نمی‌توانید تخصیص را حذف کنید چون ${shelfRow.borrowed_from_shelf} نسخه هنوز قرض داده شده است.`);
       return;
     }
+    if (isEdit && shelfRow.borrowed_from_shelf > 0 && copies < shelfRow.borrowed_from_shelf) {
+      setError(`تعداد نمی‌تواند کمتر از ${shelfRow.borrowed_from_shelf} باشد چون ${shelfRow.borrowed_from_shelf} نسخه هنوز قرض داده شده است.`);
+      return;
+    }
 
     setSaving(true);
     try {
