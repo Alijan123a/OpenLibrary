@@ -45,6 +45,21 @@ class BookViewSet(viewsets.ModelViewSet):
     # Allow ordering of the results.
     ordering_fields = ['published_date', 'price']
 
+    @action(detail=False, methods=["get"], url_path="by-qr", permission_classes=[IsAuthenticated])
+    def book_by_qr(self, request):
+        """Get book by QR code ID. Accessible to authenticated users (including students)."""
+        qr_code_id = request.query_params.get("qr_code_id")
+        if not qr_code_id:
+            raise DRFValidationError("qr_code_id is required")
+        try:
+            book = Book.objects.get(qr_code_id=qr_code_id)
+        except Book.DoesNotExist:
+            raise DRFValidationError("کتابی با این کد QR یافت نشد.")
+        except (ValueError, TypeError):
+            raise DRFValidationError("کد QR نامعتبر است.")
+        serializer = BookSerializer(book)
+        return Response(serializer.data)
+
 
 # Admins and Library employees can manage shelfs
 class ShelfViewSet(viewsets.ModelViewSet):

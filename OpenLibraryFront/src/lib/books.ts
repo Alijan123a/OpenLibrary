@@ -98,6 +98,21 @@ export const booksApi = {
     return [];
   },
 
+  // Get book by QR code ID (for students)
+  getBookByQrCodeId: async (qrCodeId: string): Promise<Book> => {
+    const token = getAuthToken();
+    if (!token) throw new Error("Not authenticated");
+    const res = await fetch(`${API_BASE_URL}/api/books/by-qr/?qr_code_id=${encodeURIComponent(qrCodeId)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const msg = Array.isArray(data.detail) ? data.detail[0] : data.detail;
+      throw new Error(msg || `Failed to fetch book: ${res.status}`);
+    }
+    return res.json();
+  },
+
   // Get book by ID
   getBook: async (id: number): Promise<Book> => {
     const token = getAuthToken();
