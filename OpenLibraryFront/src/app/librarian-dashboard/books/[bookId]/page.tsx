@@ -453,20 +453,28 @@ function BookDetailsContent() {
       key: "actions",
       header: "",
       render: (r) => (
-        <button
-          onClick={() => setAssignTarget(r)}
-          disabled={!r.has_book && unassignedCount === 0}
-          className={`text-xs font-medium px-3 py-1 rounded-lg border transition-colors ${
-            r.has_book
-              ? "text-blue-600 border-blue-300 hover:bg-blue-50"
-              : unassignedCount > 0
-                ? "text-green-600 border-green-300 hover:bg-green-50"
-                : "text-gray-400 border-gray-200 cursor-not-allowed"
-          }`}
-          title={!r.has_book && unassignedCount === 0 ? "همه نسخه‌ها تخصیص داده شده‌اند" : ""}
-        >
-          {r.has_book ? "ویرایش تخصیص" : "تخصیص"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href={`/librarian-dashboard/shelves/${r.shelf_id}${bookId ? `?bookId=${bookId}${book?.title ? `&title=${encodeURIComponent(book.title)}` : ""}` : ""}`}
+            className="text-xs font-medium px-3 py-1 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            مشاهده کتاب‌های قفسه
+          </Link>
+          <button
+            onClick={() => setAssignTarget(r)}
+            disabled={!r.has_book && unassignedCount === 0}
+            className={`text-xs font-medium px-3 py-1 rounded-lg border transition-colors ${
+              r.has_book
+                ? "text-blue-600 border-blue-300 hover:bg-blue-50"
+                : unassignedCount > 0
+                  ? "text-green-600 border-green-300 hover:bg-green-50"
+                  : "text-gray-400 border-gray-200 cursor-not-allowed"
+            }`}
+            title={!r.has_book && unassignedCount === 0 ? "همه نسخه‌ها تخصیص داده شده‌اند" : ""}
+          >
+            {r.has_book ? "ویرایش تخصیص" : "تخصیص"}
+          </button>
+        </div>
       ),
     },
   ];

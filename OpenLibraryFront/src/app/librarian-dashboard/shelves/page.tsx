@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import DataTable, { type Column } from "@/components/ui/DataTable";
@@ -115,6 +116,9 @@ function ShelvesContent() {
       header: "",
       render: (r) => (
         <div className="flex gap-2">
+          <Link href={`/librarian-dashboard/shelves/${r.id}`} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
+            مشاهده کتاب‌ها
+          </Link>
           <button onClick={() => { setEditingShelf(r); setModalOpen(true); }} className="text-xs text-blue-600 hover:text-blue-800 font-medium">ویرایش</button>
           <button onClick={() => setDeleteId(r.id)} className="text-xs text-red-500 hover:text-red-700 font-medium">حذف</button>
         </div>
