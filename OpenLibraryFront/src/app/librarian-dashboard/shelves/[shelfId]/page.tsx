@@ -28,7 +28,7 @@ function ShelfBooksContent() {
   const bookIdFromQuery = searchParams.get("bookId");
   const titleFromQuery = searchParams.get("title");
   const initialBookId = bookIdFromQuery ? Number(bookIdFromQuery) : null;
-  const initialTitle = titleFromQuery ? decodeURIComponent(titleFromQuery) : "";
+  const initialTitle = titleFromQuery ?? "";
 
   const [shelf, setShelf] = useState<Shelf | null>(null);
   const [shelfBooks, setShelfBooks] = useState<ShelfBook[]>([]);
