@@ -87,9 +87,28 @@ export async function assignBookToShelf(data: { shelf: number; book: number; cop
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || `Failed to assign book to shelf: ${res.status}`);
+    const msgStr = extractApiErrorMessage(err);
+    if (res.status === 403 && (msgStr?.toLowerCase().includes("authentication") || msgStr?.toLowerCase().includes("credential"))) {
+      throw new Error("احراز هویت ناموفق بود. لطفاً دوباره وارد شوید.");
+    }
+    throw new Error(msgStr || `Failed to assign book to shelf: ${res.status}`);
   }
   return res.json();
+}
+
+function extractApiErrorMessage(err: Record<string, unknown>): string | null {
+  const d = err.detail;
+  if (typeof d === "string" && d) return d;
+  if (Array.isArray(d) && d.length > 0) return String(d[0]);
+  const nfe = err.non_field_errors;
+  if (Array.isArray(nfe) && nfe.length > 0) return String(nfe[0]);
+  if (typeof err.message === "string" && err.message) return err.message;
+  if (typeof d === "object" && d !== null) {
+    const first = Object.values(d)[0];
+    if (Array.isArray(first) && first.length > 0) return String(first[0]);
+    if (typeof first === "string") return first;
+  }
+  return null;
 }
 
 /** Update copies_in_shelf for an existing shelf-book assignment. */
@@ -101,7 +120,8 @@ export async function updateShelfBook(id: number, data: { copies_in_shelf: numbe
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || `Failed to update shelf-book: ${res.status}`);
+    const msgStr = extractApiErrorMessage(err);
+    throw new Error(msgStr || `Failed to update shelf-book: ${res.status}`);
   }
   return res.json();
 }

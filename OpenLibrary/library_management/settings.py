@@ -91,6 +91,16 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3001",
     'http://localhost:9000', # Allow Vue.js frontend (Quasar)
 ]
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
 
 ROOT_URLCONF = 'library_management.urls'
 

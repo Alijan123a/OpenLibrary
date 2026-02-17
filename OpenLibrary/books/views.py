@@ -1,6 +1,8 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from .filters import BookFilter
 from .models import Book, Shelf, ShelfBook, Borrow, AudioBookUpload
@@ -52,6 +54,27 @@ class ShelfBookViewSet(viewsets.ModelViewSet):
     queryset = ShelfBook.objects.all()
     serializer_class = ShelfBookSerializer
     permission_classes = [IsAuthenticated, IsAdminOrLibrarian, ]  # Require authentication, Apply permission
+
+    def _handle_validation_error(self, exc):
+        """Convert Django ValidationError to DRF ValidationError for proper 400 response."""
+        if hasattr(exc, "message_dict") and exc.message_dict:
+            raise DRFValidationError(exc.message_dict)
+        if hasattr(exc, "messages") and exc.messages:
+            msg = exc.messages[0] if len(exc.messages) == 1 else "; ".join(str(m) for m in exc.messages)
+            raise DRFValidationError(msg)
+        raise DRFValidationError(str(exc))
+
+    def perform_create(self, serializer):
+        try:
+            serializer.save()
+        except DjangoValidationError as e:
+            self._handle_validation_error(e)
+
+    def perform_update(self, serializer):
+        try:
+            serializer.save()
+        except DjangoValidationError as e:
+            self._handle_validation_error(e)
 
 
 # Students can create borrows; librarians/admins can list all; students see only their own.
