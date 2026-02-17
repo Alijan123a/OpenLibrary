@@ -9,7 +9,7 @@ import DataTable, { type Column } from "@/components/ui/DataTable";
 import StatusBadge from "@/components/ui/StatusBadge";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { booksApi, type Book, type CreateBookData } from "@/lib/books";
-import { getShelves, getShelfBooks, type Shelf, type ShelfBook } from "@/lib/shelves";
+import { getShelves, getShelfBooks, assignBookToShelf, updateShelfBook, deleteShelfBook, type Shelf, type ShelfBook } from "@/lib/shelves";
 import { getBorrows, type Borrow } from "@/lib/borrow";
 import { getQrImageUrl } from "@/lib/qr";
 
@@ -180,6 +180,128 @@ interface ShelfRow {
   borrowed_from_shelf: number;
   remaining_in_shelf: number;
   has_book: boolean;
+  shelf_book_id: number | null;
+}
+
+function AssignModal({
+  open,
+  shelfRow,
+  unassignedCount,
+  onClose,
+  onSaved,
+  bookId,
+}: {
+  open: boolean;
+  shelfRow: ShelfRow | null;
+  unassignedCount: number;
+  onClose: () => void;
+  onSaved: () => void;
+  bookId: number;
+}) {
+  const [copies, setCopies] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const isEdit = shelfRow?.shelf_book_id !== null && shelfRow?.shelf_book_id !== undefined;
+  const currentCopies = shelfRow?.copies_in_shelf ?? 0;
+  const maxAllowed = isEdit ? unassignedCount + currentCopies : unassignedCount;
+
+  useEffect(() => {
+    if (!open) return;
+    setCopies(currentCopies);
+    setError("");
+  }, [open, currentCopies]);
+
+  if (!open || !shelfRow) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (copies < 0) {
+      setError("تعداد نمی‌تواند منفی باشد.");
+      return;
+    }
+    if (copies > maxAllowed) {
+      setError(`حداکثر ${maxAllowed} نسخه قابل تخصیص است. (${unassignedCount} نسخه تخصیص‌نیافته باقیمانده${isEdit ? ` + ${currentCopies} نسخه فعلی در این قفسه` : ""})`);
+      return;
+    }
+    if (isEdit && copies === 0 && shelfRow.borrowed_from_shelf > 0) {
+      setError(`نمی‌توانید تخصیص را حذف کنید چون ${shelfRow.borrowed_from_shelf} نسخه هنوز قرض داده شده است.`);
+      return;
+    }
+
+    setSaving(true);
+    try {
+      if (isEdit && copies === 0) {
+        await deleteShelfBook(shelfRow.shelf_book_id!);
+      } else if (isEdit) {
+        await updateShelfBook(shelfRow.shelf_book_id!, { copies_in_shelf: copies });
+      } else {
+        if (copies === 0) {
+          setError("لطفاً تعداد بیشتر از صفر وارد کنید.");
+          setSaving(false);
+          return;
+        }
+        await assignBookToShelf({ shelf: shelfRow.shelf_id, book: bookId, copies_in_shelf: copies });
+      }
+      onSaved();
+      onClose();
+    } catch (saveError: unknown) {
+      setError(saveError instanceof Error ? saveError.message : "خطا در ذخیره تخصیص");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="fixed inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-lg shadow-lg max-w-sm w-full mx-4 p-6">
+        <h3 className="text-base font-semibold text-gray-900 mb-1">
+          {isEdit ? "ویرایش تخصیص" : "تخصیص کتاب به قفسه"}
+        </h3>
+        <p className="text-xs text-gray-500 mb-4">قفسه: {shelfRow.location}</p>
+
+        {error && <div className="mb-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{error}</div>}
+
+        <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 mb-4 text-xs text-gray-600 space-y-1">
+          <div className="flex justify-between"><span>نسخه‌های تخصیص‌نیافته:</span><span className="font-semibold text-gray-800">{unassignedCount}</span></div>
+          {isEdit && <div className="flex justify-between"><span>تعداد فعلی در این قفسه:</span><span className="font-semibold text-gray-800">{currentCopies}</span></div>}
+          {isEdit && shelfRow.borrowed_from_shelf > 0 && (
+            <div className="flex justify-between"><span>قرض داده شده از این قفسه:</span><span className="font-semibold text-amber-600">{shelfRow.borrowed_from_shelf}</span></div>
+          )}
+          <div className="flex justify-between border-t border-gray-200 pt-1"><span>حداکثر قابل تخصیص:</span><span className="font-semibold text-gray-800">{maxAllowed}</span></div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">تعداد نسخه برای تخصیص *</label>
+            <input
+              type="number"
+              min={isEdit && shelfRow.borrowed_from_shelf > 0 ? shelfRow.borrowed_from_shelf : 0}
+              max={maxAllowed}
+              value={copies}
+              onChange={(e) => setCopies(Number(e.target.value))}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400"
+            />
+            {isEdit && shelfRow.borrowed_from_shelf > 0 && (
+              <p className="text-xs text-amber-600 mt-1">حداقل {shelfRow.borrowed_from_shelf} (تعداد قرض داده شده)</p>
+            )}
+            {isEdit && (
+              <p className="text-xs text-gray-400 mt-1">برای حذف تخصیص، مقدار ۰ وارد کنید.</p>
+            )}
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button type="submit" disabled={saving} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg disabled:opacity-50">
+              {saving ? "..." : isEdit ? "ذخیره" : "تخصیص"}
+            </button>
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">انصراف</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 }
 
 interface BorrowerRow {
@@ -210,6 +332,7 @@ function BookDetailsContent() {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [assignTarget, setAssignTarget] = useState<ShelfRow | null>(null);
 
   const loadAll = async () => {
     setLoading(true);
@@ -279,9 +402,13 @@ function BookDetailsContent() {
         borrowed_from_shelf,
         remaining_in_shelf,
         has_book: copies_in_shelf > 0,
+        shelf_book_id: sb ? sb.id : null,
       };
     });
   }, [shelves, shelfBookByShelf, activeBorrowsByShelfBook]);
+
+  const totalAssigned = shelfRows.reduce((sum, r) => sum + r.copies_in_shelf, 0);
+  const unassignedCount = Math.max((book?.total_copies || 0) - totalAssigned, 0);
 
   const filteredShelfRows = useMemo(() => {
     if (shelfFilter === "has_book") return shelfRows.filter((r) => r.has_book);
@@ -322,6 +449,26 @@ function BookDetailsContent() {
     { key: "copies_in_shelf", header: "تعداد کتاب در قفسه", render: (r) => r.copies_in_shelf, className: "w-32 text-center" },
     { key: "borrowed_from_shelf", header: "قرض گرفته شده از قفسه", render: (r) => r.borrowed_from_shelf, className: "w-36 text-center" },
     { key: "remaining_in_shelf", header: "باقیمانده در قفسه", render: (r) => r.remaining_in_shelf, className: "w-32 text-center" },
+    {
+      key: "actions",
+      header: "",
+      render: (r) => (
+        <button
+          onClick={() => setAssignTarget(r)}
+          disabled={!r.has_book && unassignedCount === 0}
+          className={`text-xs font-medium px-3 py-1 rounded-lg border transition-colors ${
+            r.has_book
+              ? "text-blue-600 border-blue-300 hover:bg-blue-50"
+              : unassignedCount > 0
+                ? "text-green-600 border-green-300 hover:bg-green-50"
+                : "text-gray-400 border-gray-200 cursor-not-allowed"
+          }`}
+          title={!r.has_book && unassignedCount === 0 ? "همه نسخه‌ها تخصیص داده شده‌اند" : ""}
+        >
+          {r.has_book ? "ویرایش تخصیص" : "تخصیص"}
+        </button>
+      ),
+    },
   ];
 
   const borrowerColumns: Column<BorrowerRow>[] = [
@@ -417,10 +564,18 @@ function BookDetailsContent() {
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-3 mb-6">
+      <div className="grid gap-4 sm:grid-cols-5 mb-6">
         <div className="bg-white border border-gray-200 rounded-lg px-4 py-4">
-          <p className="text-xs text-gray-500">تعداد موجود</p>
+          <p className="text-xs text-gray-500">تعداد کل</p>
           <p className="text-xl font-semibold text-gray-900 mt-1">{book?.total_copies ?? 0}</p>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-lg px-4 py-4">
+          <p className="text-xs text-gray-500">تخصیص به قفسه</p>
+          <p className="text-xl font-semibold text-gray-900 mt-1">{totalAssigned}</p>
+        </div>
+        <div className={`bg-white border rounded-lg px-4 py-4 ${unassignedCount > 0 ? "border-amber-300" : "border-gray-200"}`}>
+          <p className="text-xs text-gray-500">تخصیص‌نیافته</p>
+          <p className={`text-xl font-semibold mt-1 ${unassignedCount > 0 ? "text-amber-600" : "text-gray-900"}`}>{unassignedCount}</p>
         </div>
         <div className="bg-white border border-gray-200 rounded-lg px-4 py-4">
           <p className="text-xs text-gray-500">قرض گرفته شده</p>
@@ -460,7 +615,19 @@ function BookDetailsContent() {
       </div>
 
       <div className="mb-4">
-        <h2 className="text-sm font-semibold text-gray-800 mb-3">موجودیت کتاب در قفسه‌ها</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-gray-800">موجودیت کتاب در قفسه‌ها</h2>
+          {!loading && unassignedCount === 0 && totalAssigned > 0 && (
+            <span className="text-xs text-green-600 bg-green-50 border border-green-200 rounded-lg px-3 py-1">
+              همه نسخه‌ها تخصیص داده شده‌اند
+            </span>
+          )}
+          {!loading && unassignedCount > 0 && (
+            <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1">
+              {unassignedCount} نسخه هنوز تخصیص نداده شده — از دکمه «تخصیص» استفاده کنید
+            </span>
+          )}
+        </div>
         <div className="flex gap-2 mb-4">
           {[
             { key: "all" as const, label: "همه قفسه‌ها" },
@@ -502,6 +669,14 @@ function BookDetailsContent() {
         emptyDescription="هیچ دانشجویی تاکنون این کتاب را قرض نگرفته است."
       />
 
+      <AssignModal
+        open={assignTarget !== null}
+        shelfRow={assignTarget}
+        unassignedCount={unassignedCount}
+        onClose={() => setAssignTarget(null)}
+        onSaved={loadAll}
+        bookId={bookId}
+      />
       <BookModal open={editOpen} book={book} onClose={() => setEditOpen(false)} onSaved={loadAll} />
       <ConfirmDialog
         open={deleteOpen}

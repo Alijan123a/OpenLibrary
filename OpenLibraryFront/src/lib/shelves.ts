@@ -91,3 +91,29 @@ export async function assignBookToShelf(data: { shelf: number; book: number; cop
   }
   return res.json();
 }
+
+/** Update copies_in_shelf for an existing shelf-book assignment. */
+export async function updateShelfBook(id: number, data: { copies_in_shelf: number }): Promise<ShelfBook> {
+  const res = await fetch(`${API_BASE_URL}/api/shelf-books/${id}/`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Failed to update shelf-book: ${res.status}`);
+  }
+  return res.json();
+}
+
+/** Remove a shelf-book assignment. */
+export async function deleteShelfBook(id: number): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/shelf-books/${id}/`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Failed to delete shelf-book: ${res.status}`);
+  }
+}
