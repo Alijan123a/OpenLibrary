@@ -30,6 +30,28 @@ export async function getBorrows(): Promise<Borrow[]> {
   return [];
 }
 
+/** Create a borrow by QR code ID (for students). */
+export async function borrowByQr(qrCodeId: string): Promise<Borrow> {
+  const token = getAuthToken();
+  if (!token) throw new Error("Not authenticated");
+
+  const res = await fetch(`${API_BASE_URL}/api/borrow/by-qr/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ qr_code_id: qrCodeId }),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    const msg = Array.isArray(data.detail) ? data.detail[0] : data.detail;
+    throw new Error(msg || `Failed to borrow: ${res.status}`);
+  }
+  return res.json();
+}
+
 /** Create a new borrow record. */
 export async function createBorrow(shelfBookId: number): Promise<Borrow> {
   const token = getAuthToken();

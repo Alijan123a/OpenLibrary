@@ -1,6 +1,9 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models import Count, Q
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import viewsets, filters
+from rest_framework import viewsets, filters, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
@@ -91,6 +94,34 @@ class BorrowViewSet(viewsets.ModelViewSet):
             user_id = str(getattr(self.request.user, "id", ""))
             qs = qs.filter(borrower_id=user_id)
         return qs
+
+    @action(detail=False, methods=["post"], url_path="by-qr", permission_classes=[IsAuthenticated, IsStudent])
+    def borrow_by_qr(self, request):
+        """Create a borrow by QR code ID. For students."""
+        qr_code_id = request.data.get("qr_code_id")
+        if not qr_code_id:
+            raise DRFValidationError("qr_code_id is required")
+
+        try:
+            book = Book.objects.get(qr_code_id=qr_code_id)
+        except Book.DoesNotExist:
+            raise DRFValidationError("کتابی با این کد QR یافت نشد.")
+        except (ValueError, TypeError):
+            raise DRFValidationError("کد QR نامعتبر است.")
+
+        # ShelfBooks for this book with at least one copy
+        shelf_books = ShelfBook.objects.filter(book=book, copies_in_shelf__gt=0).annotate(
+            active_borrows=Count("borrow", filter=Q(borrow__return_date__isnull=True))
+        )
+        available = [sb for sb in shelf_books if sb.copies_in_shelf > (sb.active_borrows or 0)]
+        if not available:
+            raise DRFValidationError("نسخه‌ای از این کتاب در حال حاضر موجود نیست.")
+
+        shelf_book = available[0]
+        serializer = BorrowSerializer(data={"shelf_book": shelf_book.id})
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def perform_create(self, serializer):
         """Capture identity from JWT (verified by Auth Service) and store in Borrow."""
