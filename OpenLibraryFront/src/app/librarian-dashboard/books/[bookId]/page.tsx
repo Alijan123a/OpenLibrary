@@ -9,7 +9,7 @@ import DataTable, { type Column } from "@/components/ui/DataTable";
 import StatusBadge from "@/components/ui/StatusBadge";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { booksApi, type Book, type CreateBookData } from "@/lib/books";
-import { getShelfBooks, type ShelfBook } from "@/lib/shelves";
+import { getShelves, getShelfBooks, type Shelf, type ShelfBook } from "@/lib/shelves";
 import { getBorrows, type Borrow } from "@/lib/borrow";
 import { getQrImageUrl } from "@/lib/qr";
 
@@ -173,6 +173,15 @@ function BookModal({
   );
 }
 
+interface ShelfRow {
+  shelf_id: number;
+  location: string;
+  copies_in_shelf: number;
+  borrowed_from_shelf: number;
+  remaining_in_shelf: number;
+  has_book: boolean;
+}
+
 interface BorrowerRow {
   id: number;
   borrower_username: string;
@@ -191,8 +200,10 @@ function BookDetailsContent() {
   const bookId = Number(routeBookId);
 
   const [book, setBook] = useState<Book | null>(null);
+  const [shelves, setShelves] = useState<Shelf[]>([]);
   const [shelfBooks, setShelfBooks] = useState<ShelfBook[]>([]);
   const [borrows, setBorrows] = useState<Borrow[]>([]);
+  const [shelfFilter, setShelfFilter] = useState<"all" | "has_book" | "no_book">("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [actionError, setActionError] = useState("");
@@ -204,12 +215,14 @@ function BookDetailsContent() {
     setLoading(true);
     setError("");
     try {
-      const [bookData, shelfBooksData, borrowsData] = await Promise.all([
+      const [bookData, shelvesData, shelfBooksData, borrowsData] = await Promise.all([
         booksApi.getBook(bookId),
+        getShelves(),
         getShelfBooks(),
         getBorrows(),
       ]);
       setBook(bookData);
+      setShelves(shelvesData);
       setShelfBooks(shelfBooksData);
       setBorrows(borrowsData);
     } catch (loadError: unknown) {
@@ -235,6 +248,46 @@ function BookDetailsContent() {
     }
     return ids;
   }, [shelfBooks, bookId]);
+
+  const shelfBookByShelf = useMemo(() => {
+    const map = new Map<number, ShelfBook>();
+    for (const sb of shelfBooks) {
+      if (sb.book === bookId) map.set(sb.shelf, sb);
+    }
+    return map;
+  }, [shelfBooks, bookId]);
+
+  const activeBorrowsByShelfBook = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const b of borrows) {
+      if (b.return_date) continue;
+      map.set(b.shelf_book, (map.get(b.shelf_book) || 0) + 1);
+    }
+    return map;
+  }, [borrows]);
+
+  const shelfRows: ShelfRow[] = useMemo(() => {
+    return shelves.map((shelf) => {
+      const sb = shelfBookByShelf.get(shelf.id);
+      const copies_in_shelf = sb ? sb.copies_in_shelf : 0;
+      const borrowed_from_shelf = sb ? activeBorrowsByShelfBook.get(sb.id) || 0 : 0;
+      const remaining_in_shelf = Math.max(copies_in_shelf - borrowed_from_shelf, 0);
+      return {
+        shelf_id: shelf.id,
+        location: shelf.location,
+        copies_in_shelf,
+        borrowed_from_shelf,
+        remaining_in_shelf,
+        has_book: copies_in_shelf > 0,
+      };
+    });
+  }, [shelves, shelfBookByShelf, activeBorrowsByShelfBook]);
+
+  const filteredShelfRows = useMemo(() => {
+    if (shelfFilter === "has_book") return shelfRows.filter((r) => r.has_book);
+    if (shelfFilter === "no_book") return shelfRows.filter((r) => !r.has_book);
+    return shelfRows;
+  }, [shelfRows, shelfFilter]);
 
   const borrowerRows: BorrowerRow[] = useMemo(() => {
     const now = new Date();
@@ -262,6 +315,14 @@ function BookDetailsContent() {
 
   const activeBorrowedCount = borrowerRows.filter((r) => r.status !== "returned").length;
   const remainingCount = Math.max((book?.total_copies || 0) - activeBorrowedCount, 0);
+
+  const shelfColumns: Column<ShelfRow>[] = [
+    { key: "shelf_id", header: "شماره", render: (r) => r.shelf_id, className: "w-14" },
+    { key: "location", header: "اسم قفسه", render: (r) => <span className="font-medium">{r.location}</span> },
+    { key: "copies_in_shelf", header: "تعداد کتاب در قفسه", render: (r) => r.copies_in_shelf, className: "w-32 text-center" },
+    { key: "borrowed_from_shelf", header: "قرض گرفته شده از قفسه", render: (r) => r.borrowed_from_shelf, className: "w-36 text-center" },
+    { key: "remaining_in_shelf", header: "باقیمانده در قفسه", render: (r) => r.remaining_in_shelf, className: "w-32 text-center" },
+  ];
 
   const borrowerColumns: Column<BorrowerRow>[] = [
     { key: "id", header: "#", render: (r) => r.id, className: "w-12" },
@@ -396,6 +457,37 @@ function BookDetailsContent() {
             <div className="md:col-span-2">کد QR: <span className="font-medium">{book?.qr_code_id || "—"}</span></div>
           </div>
         </div>
+      </div>
+
+      <div className="mb-4">
+        <h2 className="text-sm font-semibold text-gray-800 mb-3">موجودیت کتاب در قفسه‌ها</h2>
+        <div className="flex gap-2 mb-4">
+          {[
+            { key: "all" as const, label: "همه قفسه‌ها" },
+            { key: "has_book" as const, label: "قفسه‌های دارای کتاب" },
+            { key: "no_book" as const, label: "قفسه‌های بدون کتاب" },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setShelfFilter(tab.key)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                shelfFilter === tab.key
+                  ? "bg-gray-900 text-white border-gray-900"
+                  : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <DataTable
+          columns={shelfColumns}
+          data={filteredShelfRows}
+          loading={loading}
+          keyExtractor={(r) => r.shelf_id}
+          emptyTitle="قفسه‌ای یافت نشد"
+          emptyDescription="هنوز قفسه‌ای در کتابخانه تعریف نشده است."
+        />
       </div>
 
       <div className="mb-3">
