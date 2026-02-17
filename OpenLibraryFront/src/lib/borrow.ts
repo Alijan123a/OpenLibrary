@@ -7,6 +7,9 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 export interface Borrow {
   id: number;
   shelf_book: number;
+  shelf_location?: string;
+  book_title?: string;
+  book_author?: string;
   borrowed_date: string;
   return_date: string | null;
   borrower_id: string | null;

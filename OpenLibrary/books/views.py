@@ -12,6 +12,7 @@ from .models import Book, Shelf, ShelfBook, Borrow, AudioBookUpload
 from .serializers import (
     BookSerializer,
     BorrowSerializer,
+    BorrowListSerializer,
     ShelfBookSerializer,
     ShelfSerializer,
     AudioBookUploadSerializer,
@@ -88,12 +89,19 @@ class BorrowViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Students see only their own borrows; librarians/admins see all."""
-        qs = Borrow.objects.all()
+        qs = Borrow.objects.select_related(
+            "shelf_book", "shelf_book__shelf", "shelf_book__book"
+        )
         role = getattr(getattr(self.request, "user", None), "role", None)
         if role and str(role).strip().lower() == "student":
             user_id = str(getattr(self.request.user, "id", ""))
             qs = qs.filter(borrower_id=user_id)
         return qs
+
+    def get_serializer_class(self):
+        if self.action in ("list", "retrieve"):
+            return BorrowListSerializer
+        return BorrowSerializer
 
     @action(detail=False, methods=["post"], url_path="by-qr", permission_classes=[IsAuthenticated, IsStudent])
     def borrow_by_qr(self, request):

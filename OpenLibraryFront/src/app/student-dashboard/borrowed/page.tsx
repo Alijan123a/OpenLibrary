@@ -49,7 +49,9 @@ function BorrowedContent() {
 
   const columns: Column<Borrow>[] = [
     { key: "id", header: "شناسه", render: (r) => `#${r.id}` },
-    { key: "shelf_book", header: "شناسه قفسه‌-کتاب", render: (r) => r.shelf_book },
+    { key: "book_title", header: "عنوان", render: (r) => <span className="font-medium">{r.book_title ?? "—"}</span> },
+    { key: "book_author", header: "نویسنده", render: (r) => r.book_author ?? "—" },
+    { key: "shelf_location", header: "قفسه", render: (r) => r.shelf_location ?? "—" },
     {
       key: "borrowed_date",
       header: "تاریخ امانت",
