@@ -230,10 +230,6 @@ function AssignModal({
       setError(`نمی‌توانید تخصیص را حذف کنید چون ${shelfRow.borrowed_from_shelf} نسخه هنوز قرض داده شده است.`);
       return;
     }
-    if (isEdit && shelfRow.borrowed_from_shelf > 0 && copies < shelfRow.borrowed_from_shelf) {
-      setError(`تعداد نمی‌تواند کمتر از ${shelfRow.borrowed_from_shelf} باشد چون ${shelfRow.borrowed_from_shelf} نسخه هنوز قرض داده شده است.`);
-      return;
-    }
 
     setSaving(true);
     try {
@@ -568,26 +564,26 @@ function BookDetailsContent() {
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-5 mb-6">
-        <div className="bg-white border border-gray-200 rounded-lg px-4 py-4">
-          <p className="text-xs text-gray-500">تعداد کل</p>
-          <p className="text-xl font-semibold text-gray-900 mt-1">{book?.total_copies ?? 0}</p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm px-4 py-4 min-h-[80px] flex flex-col justify-center">
+          <p className="text-xs text-gray-500 mb-0.5">تعداد کل</p>
+          <p className="text-2xl font-semibold text-gray-900 tabular-nums">{book?.total_copies ?? 0}</p>
         </div>
-        <div className="bg-white border border-gray-200 rounded-lg px-4 py-4">
-          <p className="text-xs text-gray-500">تخصیص به قفسه</p>
-          <p className="text-xl font-semibold text-gray-900 mt-1">{totalAssigned}</p>
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm px-4 py-4 min-h-[80px] flex flex-col justify-center">
+          <p className="text-xs text-gray-500 mb-0.5">تخصیص به قفسه</p>
+          <p className="text-2xl font-semibold text-gray-900 tabular-nums">{totalAssigned}</p>
         </div>
-        <div className={`bg-white border rounded-lg px-4 py-4 ${unassignedCount > 0 ? "border-amber-300" : "border-gray-200"}`}>
-          <p className="text-xs text-gray-500">تخصیص‌نیافته</p>
-          <p className={`text-xl font-semibold mt-1 ${unassignedCount > 0 ? "text-amber-600" : "text-gray-900"}`}>{unassignedCount}</p>
+        <div className={`rounded-lg shadow-sm px-4 py-4 min-h-[80px] flex flex-col justify-center ${unassignedCount > 0 ? "bg-amber-50 border border-amber-200" : "bg-white border border-gray-200"}`}>
+          <p className="text-xs text-gray-500 mb-0.5">تخصیص‌نیافته</p>
+          <p className={`text-2xl font-semibold tabular-nums ${unassignedCount > 0 ? "text-amber-700" : "text-gray-900"}`}>{unassignedCount}</p>
         </div>
-        <div className="bg-white border border-gray-200 rounded-lg px-4 py-4">
-          <p className="text-xs text-gray-500">قرض گرفته شده</p>
-          <p className="text-xl font-semibold text-gray-900 mt-1">{activeBorrowedCount}</p>
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm px-4 py-4 min-h-[80px] flex flex-col justify-center">
+          <p className="text-xs text-gray-500 mb-0.5">قرض گرفته شده</p>
+          <p className="text-2xl font-semibold text-gray-900 tabular-nums">{activeBorrowedCount}</p>
         </div>
-        <div className="bg-white border border-gray-200 rounded-lg px-4 py-4">
-          <p className="text-xs text-gray-500">باقیمانده</p>
-          <p className="text-xl font-semibold text-gray-900 mt-1">{remainingCount}</p>
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm px-4 py-4 min-h-[80px] flex flex-col justify-center">
+          <p className="text-xs text-gray-500 mb-0.5">باقیمانده</p>
+          <p className="text-2xl font-semibold text-gray-900 tabular-nums">{remainingCount}</p>
         </div>
       </div>
 
