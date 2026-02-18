@@ -1,3 +1,5 @@
+import requests
+from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Count, Q
 from django_filters.rest_framework import DjangoFilterBackend
@@ -117,6 +119,54 @@ class BorrowViewSet(viewsets.ModelViewSet):
         if self.action in ("list", "retrieve"):
             return BorrowListSerializer
         return BorrowSerializer
+
+    def _fetch_student_numbers(self, borrower_ids):
+        """Fetch student_number from Auth Service for borrows that don't have it."""
+        if not borrower_ids:
+            return {}
+        url = getattr(settings, "AUTH_SERVICE_INTERNAL_URL", "http://127.0.0.1:8002/api/internal/users-info/")
+        key = getattr(settings, "AUTH_SERVICE_INTERNAL_KEY", "openlibrary-internal-key")
+        ids_str = ",".join(str(x) for x in borrower_ids)
+        try:
+            resp = requests.get(f"{url}?ids={ids_str}", headers={"X-Internal-Key": key}, timeout=3)
+            if resp.status_code == 200:
+                data = resp.json()
+                return {bid: data.get(str(bid), {}).get("student_number", "") or "" for bid in borrower_ids}
+        except requests.RequestException:
+            pass
+        return {}
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        need_enrich = [
+            b.borrower_id for b in queryset
+            if b.borrower_id and not (b.borrower_student_number or "").strip()
+        ]
+        enrichment = {}
+        if need_enrich:
+            enrichment = self._fetch_student_numbers(list(set(need_enrich)))
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            data = list(serializer.data)
+            for item in data:
+                bid = item.get("borrower_id")
+                if bid and not (item.get("borrower_student_number") or "").strip():
+                    val = enrichment.get(bid, "")
+                    if val:
+                        item["borrower_student_number"] = val
+            return self.get_paginated_response(data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        data = list(serializer.data)
+        for item in data:
+            bid = item.get("borrower_id")
+            if bid and not (item.get("borrower_student_number") or "").strip():
+                val = enrichment.get(bid, "")
+                if val:
+                    item["borrower_student_number"] = val
+        return Response(data)
 
     @action(detail=False, methods=["post"], url_path="by-qr", permission_classes=[IsAuthenticated, IsStudent])
     def borrow_by_qr(self, request):

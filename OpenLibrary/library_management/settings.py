@@ -74,6 +74,16 @@ AUTH_SERVICE_VERIFY_URL = os.getenv(
     'http://127.0.0.1:8002/api/user-role/',
 )
 
+# Auth Service internal endpoint for enriching borrow list with student_number
+AUTH_SERVICE_INTERNAL_URL = os.getenv(
+    'AUTH_SERVICE_INTERNAL_URL',
+    'http://127.0.0.1:8002/api/internal/users-info/',
+)
+AUTH_SERVICE_INTERNAL_KEY = os.getenv(
+    'AUTH_SERVICE_INTERNAL_KEY',
+    'openlibrary-internal-key',
+)
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',

@@ -84,6 +84,9 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 SIMPLEJWT_SECRET = os.getenv("SIMPLEJWT_SECRET", SECRET_KEY)
 
+# Shared key for main backend to fetch user info (service-to-service)
+AUTH_SERVICE_INTERNAL_KEY = os.getenv("AUTH_SERVICE_INTERNAL_KEY", "openlibrary-internal-key")
+
 from rest_framework_simplejwt.settings import api_settings as sjwt_settings
 sjwt_settings.SIGNING_KEY = SIMPLEJWT_SECRET
 sjwt_settings.ALGORITHM = "HS256"

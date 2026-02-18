@@ -1,12 +1,22 @@
+from django.conf import settings
 from django.contrib.auth.models import Group
 from rest_framework import viewsets
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, BasePermission
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .models import CustomUser
+
+
+class InternalKeyPermission(BasePermission):
+    """Allow access only with correct X-Internal-Key header (for main backend)."""
+
+    def has_permission(self, request, view):
+        key = request.headers.get("X-Internal-Key", "")
+        expected = getattr(settings, "AUTH_SERVICE_INTERNAL_KEY", "openlibrary-internal-key")
+        return bool(key and key == expected)
 from .serializers import UserListSerializer, UserCreateSerializer, UserUpdateSerializer
 from .permissions import IsAdminOrLibrarian, CanManageUser
 
@@ -54,6 +64,27 @@ class UserRoleView(APIView):
             "username": user.username,
             "student_number": getattr(user, "student_number", None) or "",
         })
+
+
+class UsersInfoView(APIView):
+    """Internal: return user info (student_number) by ids. Used by main backend to enrich borrow list."""
+    permission_classes = [InternalKeyPermission]
+
+    def get(self, request):
+        ids_param = request.query_params.get("ids", "")
+        if not ids_param:
+            return Response({})
+        try:
+            ids = [int(x.strip()) for x in ids_param.split(",") if x.strip()]
+        except ValueError:
+            return Response({})
+        if not ids:
+            return Response({})
+        users = CustomUser.objects.filter(id__in=ids).values("id", "student_number")
+        result = {}
+        for u in users:
+            result[str(u["id"])] = {"student_number": u["student_number"] or ""}
+        return Response(result)
 
 
 def _caller_role(user) -> str:
