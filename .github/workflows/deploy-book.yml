@@ -18,5 +18,5 @@ jobs:
       - name: Deploy to Liara
         env:
           LIARA_TOKEN: ${{ secrets.LIARA_API_TOKEN }}
-        run: liara deploy --api-token="$LIARA_TOKEN" --detach
+        run: liara deploy --api-token="$LIARA_TOKEN" --disks "book-data:/app/data" --disks "book-media:/app/media" --detach
         working-directory: ./OpenLibrary
