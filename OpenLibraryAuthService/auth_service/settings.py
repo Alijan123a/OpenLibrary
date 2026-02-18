@@ -7,10 +7,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-secret-change-me")
 DEBUG = True
 ALLOWED_HOSTS = ["*"]
-CSRF_TRUSTED_ORIGINS = os.getenv(
+CSRF_TRUSTED_ORIGINS = [x.strip() for x in os.getenv(
     "CSRF_TRUSTED_ORIGINS",
     "https://openlibrary-auth.liara.run,https://openlibrary-frontend.liara.run"
-).split(",")
+).split(",") if x.strip()]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -26,6 +26,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -72,6 +73,7 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
