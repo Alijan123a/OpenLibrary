@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { loginUser } from "@/lib/auth";
-import { checkRole } from "@/lib/role";
+import { getRoleFromToken } from "@/lib/role";
 
 export default function LoginForm() {
   const [username, setUsername] = useState("");
@@ -24,7 +24,7 @@ export default function LoginForm() {
       return;
     }
 
-    const role = await checkRole(token);
+    const role = getRoleFromToken(token);
     setLoading(false);
 
     switch (role) {
@@ -56,10 +56,8 @@ export default function LoginForm() {
           <p className="text-sm text-gray-500 mt-1">برای ادامه وارد حساب کاربری شوید</p>
         </div>
 
-        {/* Card */}
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
           <form onSubmit={handleSubmit}>
-            {/* Username */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1.5">نام کاربری</label>
               <input
@@ -73,7 +71,6 @@ export default function LoginForm() {
               />
             </div>
 
-            {/* Password */}
             <div className="mb-5">
               <label className="block text-sm font-medium text-gray-700 mb-1.5">رمز عبور</label>
               <input
@@ -86,14 +83,12 @@ export default function LoginForm() {
               />
             </div>
 
-            {/* Error */}
             {error && (
               <div className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
                 {error}
               </div>
             )}
 
-            {/* Submit */}
             <button
               type="submit"
               disabled={loading}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { booksApi } from "@/lib/books";
 import { getBorrows } from "@/lib/borrow";
 import { FaBook, FaUsers, FaClipboardList, FaExclamationTriangle } from "react-icons/fa";
@@ -56,7 +57,7 @@ function LibrarianDashboardContent() {
     <div>
       <h1 className="text-xl font-bold text-gray-900 mb-6">داشبورد کتابدار</h1>
       {loading ? (
-        <p className="text-sm text-gray-400">در حال بارگذاری...</p>
+        <LoadingSpinner size="md" className="py-16" />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <SummaryCard

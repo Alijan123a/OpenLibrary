@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { getUsers, type User } from "@/lib/users";
 import { FaUsersCog, FaUsers, FaChartBar } from "react-icons/fa";
 
@@ -39,7 +40,7 @@ function AdminDashboardContent() {
     <div>
       <h1 className="text-xl font-bold text-gray-900 mb-6">داشبورد مدیر سیستم</h1>
       {loading ? (
-        <p className="text-sm text-gray-400">در حال بارگذاری...</p>
+        <LoadingSpinner size="md" className="py-16" />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <SummaryCard

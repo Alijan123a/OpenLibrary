@@ -1,6 +1,7 @@
 "use client";
 
 import DashboardLayout from "@/components/DashboardLayout";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useEffect, useState } from "react";
 import { getBorrows, type Borrow } from "@/lib/borrow";
 import { FaBook, FaExclamationTriangle, FaClock } from "react-icons/fa";
@@ -44,7 +45,7 @@ function StudentDashboardContent() {
       <h1 className="text-xl font-bold text-gray-900 mb-6">داشبورد دانشجو</h1>
 
       {loading ? (
-        <p className="text-sm text-gray-400">در حال بارگذاری...</p>
+        <LoadingSpinner size="md" className="py-16" />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <SummaryCard

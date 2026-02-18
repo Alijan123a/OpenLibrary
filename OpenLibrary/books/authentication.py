@@ -1,3 +1,5 @@
+import time
+import threading
 from typing import Optional, Tuple
 
 import requests
@@ -6,11 +8,33 @@ from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 
 
-class TokenUser:
-    """Lightweight user-like object built from Auth Service token verification.
+_cache: dict[str, tuple[dict, float]] = {}
+_cache_lock = threading.Lock()
+_CACHE_TTL = 60  # seconds
 
-    Attributes come from Auth Service GET /api/user-role/ (user_id, username, role, student_number).
-    """
+
+def _get_cached(token: str) -> Optional[dict]:
+    with _cache_lock:
+        entry = _cache.get(token)
+        if entry and time.time() - entry[1] < _CACHE_TTL:
+            return entry[0]
+        _cache.pop(token, None)
+        return None
+
+
+def _set_cached(token: str, data: dict) -> None:
+    with _cache_lock:
+        now = time.time()
+        if len(_cache) > 2000:
+            cutoff = now - _CACHE_TTL
+            expired = [k for k, v in _cache.items() if v[1] < cutoff]
+            for k in expired:
+                del _cache[k]
+        _cache[token] = (data, now)
+
+
+class TokenUser:
+    """Lightweight user-like object built from Auth Service token verification."""
 
     def __init__(self, user_id, username: str, role: str, student_number: str = ""):
         self.id = str(user_id) if user_id is not None else None
@@ -26,8 +50,7 @@ class TokenUser:
 class AuthServiceAuthentication(BaseAuthentication):
     """Authenticate by verifying the JWT with the Auth Service.
 
-    Expects Authorization: Bearer <token>. Calls Auth Service user-role endpoint;
-    if valid, builds request.user from the response (user_id, username, role).
+    Results are cached for 60 seconds per token to avoid repeated HTTP calls.
     """
 
     def authenticate(self, request) -> Optional[Tuple[TokenUser, None]]:
@@ -38,6 +61,10 @@ class AuthServiceAuthentication(BaseAuthentication):
         token = auth_header.split(" ", 1)[1].strip()
         if not token:
             return None
+
+        cached = _get_cached(token)
+        if cached is not None:
+            return (self._build_user(cached), None)
 
         verify_url = getattr(
             settings,
@@ -61,10 +88,14 @@ class AuthServiceAuthentication(BaseAuthentication):
         except Exception:
             raise AuthenticationFailed("Invalid Auth Service response")
 
-        user_id = data.get("user_id")
-        username = data.get("username", "")
-        role = (data.get("role") or "unknown").strip().lower()
-        student_number = data.get("student_number") or ""
+        _set_cached(token, data)
+        return (self._build_user(data), None)
 
-        user = TokenUser(user_id=user_id, username=username, role=role, student_number=student_number)
-        return (user, None)
+    @staticmethod
+    def _build_user(data: dict) -> TokenUser:
+        return TokenUser(
+            user_id=data.get("user_id"),
+            username=data.get("username", ""),
+            role=(data.get("role") or "unknown").strip().lower(),
+            student_number=data.get("student_number") or "",
+        )
