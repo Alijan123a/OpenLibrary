@@ -51,6 +51,7 @@ Thumbs.db
 # Sensitive data exports
 users_export.json
 
+
 # Project-specific non-code files
 *.pdf
 

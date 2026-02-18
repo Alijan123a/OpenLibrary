@@ -17,7 +17,7 @@ from decimal import Decimal
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from books.models import Book, Shelf, ShelfBook, Borrow
+from books.models import Book, Shelf, ShelfBook, Borrow, CustomUser
 
 
 # ─── Raw data constants ──────────────────────────────────────────────────────
@@ -127,6 +127,24 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         now = timezone.now()
+
+        # ── 0. Admin user for Django admin panel ────────────────────────────
+        self.log("Creating admin user for /admin/ login...")
+        admin_user, created = CustomUser.objects.get_or_create(
+            username="admin",
+            defaults=dict(
+                is_staff=True,
+                is_superuser=True,
+                is_active=True,
+                email="admin@example.com",
+            ),
+        )
+        if created:
+            admin_user.set_password("admin123")
+            admin_user.save()
+            self.log("  + admin/admin123 (Django admin at /admin/)")
+        else:
+            self.log("  (admin user already exists)")
 
         # ── 1. Books ──────────────────────────────────────────────────────
         self.log("Creating books...")

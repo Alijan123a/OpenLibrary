@@ -31,15 +31,15 @@ Copy `.env.docker.example` to `.env` to override defaults:
 cp .env.docker.example .env
 ```
 
-## Seed Data (Optional)
+## Seed Data
 
-After first run, seed data inside containers:
+Auth and backend run seed automatically on startup:
+- **Auth:** admin/admin123, librarian/librarian123, students/student123
+- **Backend:** books, shelves, sample borrows, and **admin/admin123** for Django admin at `/admin/`
 
+To re-seed manually:
 ```bash
-# Auth: create users (admin, librarian, students)
-docker compose exec auth python manage.py seed_students
-
-# Main backend: create books, shelves, borrows
+docker compose exec auth python manage.py seed_initial
 docker compose exec backend python manage.py seed_test_data
 ```
 

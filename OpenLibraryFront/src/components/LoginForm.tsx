@@ -17,14 +17,18 @@ export default function LoginForm() {
     setError("");
     setLoading(true);
 
-    const token = await loginUser(username, password);
-    if (!token) {
-      setError("نام کاربری یا رمز عبور اشتباه است.");
+    const result = await loginUser(username, password);
+    if (!result || !result.success) {
+      if (result?.error === "network") {
+        setError("خطا در اتصال به سرور. لطفاً اتصال اینترنت و سرویس احراز هویت را بررسی کنید.");
+      } else {
+        setError("نام کاربری یا رمز عبور اشتباه است.");
+      }
       setLoading(false);
       return;
     }
 
-    const role = getRoleFromToken(token);
+    const role = getRoleFromToken(result.token);
     setLoading(false);
 
     switch (role) {

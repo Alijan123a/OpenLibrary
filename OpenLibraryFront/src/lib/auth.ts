@@ -1,10 +1,12 @@
 "use client";
 
-export async function loginUser(username: string, password: string) {
+export type LoginResult = { success: true; token: string } | { success: false; error: "network" | "invalid" } | null;
+
+export async function loginUser(username: string, password: string): Promise<LoginResult> {
   try {
     const loginApi = process.env.NEXT_PUBLIC_LOGIN_API;
     if (!loginApi) {
-      throw new Error("Environment variable NEXT_PUBLIC_LOGIN_API is not set");
+      return { success: false, error: "network" };
     }
     const res = await fetch(loginApi, {
       method: "POST",
@@ -14,21 +16,20 @@ export async function loginUser(username: string, password: string) {
       body: JSON.stringify({ username, password }),
     });
 
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      throw new Error(data.error || "Login failed");
+      return { success: false, error: "invalid" };
     }
 
-    // Store token in localStorage (browser only)
     if (typeof window !== "undefined") {
       localStorage.setItem("jwt", data.access);
       localStorage.setItem("refreshToken", data.refresh);
     }
 
-    return data.access;
+    return { success: true, token: data.access };
   } catch (error) {
     console.error("Login error:", error);
-    return null;
+    return { success: false, error: "network" };
   }
 }
 

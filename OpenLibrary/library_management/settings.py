@@ -30,7 +30,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-g*j2*oqca2tj#h@kj)(2-7troh!8e1-fi4w4n%zr$*c7tw8_n_'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-g*j2*oqca2tj#h@kj)(2-7troh!8e1-fi4w4n%zr$*c7tw8_n_')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -94,13 +94,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'corsheaders.middleware.CorsMiddleware',
 ]
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # Allow Next.js frontend
-    "http://127.0.0.1:3000",
-    "http://localhost:3001",  # Next.js fallback port when 3000 is busy
-    "http://127.0.0.1:3001",
-    'http://localhost:9000', # Allow Vue.js frontend (Quasar)
-]
+CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:9000').split(',')
 CORS_ALLOW_HEADERS = [
     "accept",
     "accept-encoding",
@@ -177,7 +171,7 @@ USE_TZ = True  # Enable Django’s timezone support
 
 STATIC_URL = 'static/'
 MEDIA_URL = 'media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = Path(os.getenv('MEDIA_ROOT', str(BASE_DIR / 'media')))
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
