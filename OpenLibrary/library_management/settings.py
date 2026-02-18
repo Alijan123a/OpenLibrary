@@ -36,10 +36,10 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-g*j2*oqca2tj#h@kj)(
 DEBUG = True
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
-CSRF_TRUSTED_ORIGINS = os.getenv(
+CSRF_TRUSTED_ORIGINS = [x.strip() for x in os.getenv(
     'CSRF_TRUSTED_ORIGINS',
     'https://openlibrary-book.liara.run,https://openlibrary-frontend.liara.run'
-).split(',')
+).split(',') if x.strip()]
 
 # Application definition
 
@@ -90,6 +90,7 @@ AUTH_SERVICE_INTERNAL_KEY = os.getenv(
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -174,6 +175,7 @@ USE_TZ = True  # Enable Django’s timezone support
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = 'media/'
 MEDIA_ROOT = Path(os.getenv('MEDIA_ROOT', str(BASE_DIR / 'media')))
 
