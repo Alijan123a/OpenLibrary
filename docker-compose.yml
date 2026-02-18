@@ -1,0 +1,94 @@
+services:
+  # Main backend - books, shelves, borrows
+  backend:
+    build:
+      context: ./OpenLibrary
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - backend_db:/app/data
+      - backend_media:/app/media
+    environment:
+      - ALLOWED_HOSTS=localhost,127.0.0.1,backend
+      - DATABASE_PATH=/app/data/db.sqlite3
+      - AUTH_SERVICE_VERIFY_URL=http://auth:8002/api/user-role/
+      - AUTH_SERVICE_INTERNAL_URL=http://auth:8002/api/internal/users-info/
+      - AUTH_SERVICE_INTERNAL_KEY=${AUTH_INTERNAL_KEY:-openlibrary-internal-key}
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             gunicorn -b 0.0.0.0:8000 library_management.wsgi"
+    depends_on:
+      - auth
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; r=urllib.request.urlopen('http://localhost:8000/admin/', timeout=5); exit(0 if r else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # Auth service - login, JWT, user management
+  auth:
+    build:
+      context: ./OpenLibraryAuthService
+      dockerfile: Dockerfile
+    ports:
+      - "8002:8002"
+    volumes:
+      - auth_db:/app/data
+    environment:
+      - ALLOWED_HOSTS=*
+      - DATABASE_PATH=/app/data/db.sqlite3
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-dev-secret-change-in-production}
+      - SIMPLEJWT_SECRET=${SIMPLEJWT_SECRET:-dev-jwt-secret}
+      - AUTH_SERVICE_INTERNAL_KEY=${AUTH_INTERNAL_KEY:-openlibrary-internal-key}
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             gunicorn -b 0.0.0.0:8002 auth_service.wsgi"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; r=urllib.request.urlopen('http://localhost:8002/admin/', timeout=5); exit(0 if r else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # QR service - generate and decode QR codes
+  qr:
+    build:
+      context: ./OpenLibraryQRService
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - CORS_ALLOW_ORIGINS=*
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; r=urllib.request.urlopen('http://localhost:8001/generate?qr_code_id=test', timeout=5); exit(0 if r else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Frontend - Next.js
+  frontend:
+    build:
+      context: ./OpenLibraryFront
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+        NEXT_PUBLIC_AUTH_URL: http://localhost:8002
+        NEXT_PUBLIC_LOGIN_API: http://localhost:8002/api/login/
+        NEXT_PUBLIC_CHECK_ROLE: http://localhost:8002/api/user-role/
+        NEXT_PUBLIC_QR_SERVICE_URL: http://localhost:8001
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+      auth:
+        condition: service_healthy
+      qr:
+        condition: service_healthy
+
+volumes:
+  backend_db:
+  backend_media:
+  auth_db:
