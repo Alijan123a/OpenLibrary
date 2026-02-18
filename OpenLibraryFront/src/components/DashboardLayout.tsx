@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getRoleFromToken, getUsernameFromToken } from "@/lib/role";
 import type { UserRole } from "@/lib/role";
 import Sidebar, { MobileMenuButton } from "./Sidebar";
 import type { UserRole as SidebarRole } from "./Sidebar";
+import LoadingSpinner from "./ui/LoadingSpinner";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -15,28 +16,33 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps) {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const auth = useMemo(() => {
-    if (typeof window === "undefined") return null;
-    const token = localStorage.getItem("jwt");
-    if (!token) return null;
-    const role = getRoleFromToken(token);
-    if (!role) return null;
-    const username = getUsernameFromToken(token);
-    return { role, username };
-  }, []);
+  const [auth, setAuth] = useState<{ role: UserRole; username: string } | null>(null);
 
   useEffect(() => {
-    if (!auth) {
+    const token = localStorage.getItem("jwt");
+    if (!token) {
       router.push("/login");
       return;
     }
-    if (!allowedRoles.includes(auth.role)) {
-      router.push("/unauthorized");
+    const role = getRoleFromToken(token);
+    if (!role) {
+      router.push("/login");
+      return;
     }
-  }, [auth, allowedRoles, router]);
+    if (!allowedRoles.includes(role)) {
+      router.push("/unauthorized");
+      return;
+    }
+    setAuth({ role, username: getUsernameFromToken(token) });
+  }, [router, allowedRoles]);
 
-  if (!auth || !allowedRoles.includes(auth.role)) return null;
+  if (auth === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
 
   const sidebarRole: SidebarRole = auth.role === "admin" ? "admin" : auth.role === "librarian" ? "librarian" : "student";
 
@@ -47,7 +53,7 @@ export default function DashboardLayout({ children, allowedRoles }: DashboardLay
       <div className="lg:mr-56">
         <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
           <MobileMenuButton onClick={() => setSidebarOpen(true)} />
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 ms-auto">
             <span className="text-sm font-medium text-gray-800 hidden sm:inline">{auth.username}</span>
             <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600">
               {auth.username ? auth.username[0].toUpperCase() : "U"}
