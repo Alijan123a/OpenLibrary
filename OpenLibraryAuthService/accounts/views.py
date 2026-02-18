@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.contrib.auth.models import Group
-from rest_framework import viewsets
+from rest_framework import viewsets, serializers as drf_serializers
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated, BasePermission
 from rest_framework.response import Response
@@ -17,6 +17,8 @@ class InternalKeyPermission(BasePermission):
         key = request.headers.get("X-Internal-Key", "")
         expected = getattr(settings, "AUTH_SERVICE_INTERNAL_KEY", "openlibrary-internal-key")
         return bool(key and key == expected)
+
+
 from .serializers import UserListSerializer, UserCreateSerializer, UserUpdateSerializer
 from .permissions import IsAdminOrLibrarian, CanManageUser
 
@@ -85,6 +87,53 @@ class UsersInfoView(APIView):
         for u in users:
             result[str(u["id"])] = {"student_number": u["student_number"] or ""}
         return Response(result)
+
+
+class ProfileView(APIView):
+    """GET: current user profile. PATCH: update own profile (email, phone, student_number)."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        raw_role = getattr(user, "main_role")() if hasattr(user, "main_role") else "student"
+        return Response({
+            "id": user.id,
+            "username": user.username,
+            "email": user.email or "",
+            "first_name": user.first_name or "",
+            "last_name": user.last_name or "",
+            "phone_number": getattr(user, "phone_number", "") or "",
+            "student_number": getattr(user, "student_number", "") or "",
+            "role": _normalize_role(raw_role),
+            "date_joined": user.date_joined.isoformat() if user.date_joined else "",
+        })
+
+    def patch(self, request):
+        user = request.user
+        allowed = ("email", "first_name", "last_name", "phone_number")
+        for field in allowed:
+            if field in request.data:
+                setattr(user, field, request.data[field])
+        user.save()
+        return self.get(request)
+
+
+class ChangePasswordView(APIView):
+    """Change current user's password. Requires old_password + new_password."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        old_password = request.data.get("old_password", "")
+        new_password = request.data.get("new_password", "")
+        if not old_password or not new_password:
+            return Response({"detail": "رمز فعلی و رمز جدید الزامی هستند."}, status=400)
+        if len(new_password) < 4:
+            return Response({"detail": "رمز جدید باید حداقل ۴ کاراکتر باشد."}, status=400)
+        if not request.user.check_password(old_password):
+            return Response({"detail": "رمز فعلی اشتباه است."}, status=400)
+        request.user.set_password(new_password)
+        request.user.save()
+        return Response({"detail": "رمز عبور با موفقیت تغییر کرد."})
 
 
 def _caller_role(user) -> str:

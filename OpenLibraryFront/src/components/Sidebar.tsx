@@ -14,6 +14,7 @@ import {
   FaSignOutAlt,
   FaUpload,
   FaUsersCog,
+  FaCog,
 } from "react-icons/fa";
 
 export type UserRole = "student" | "librarian" | "admin";
@@ -30,6 +31,7 @@ const studentNav: NavItem[] = [
   { key: "borrowed", label: "کتاب‌های امانی", href: "/student-dashboard/borrowed", icon: <FaBook size={16} /> },
   { key: "scan", label: "اسکن QR", href: "/student-dashboard/scan", icon: <FaQrcode size={16} /> },
   { key: "upload", label: "آپلود کتاب صوتی", href: "/student-dashboard/upload", icon: <FaUpload size={16} /> },
+  { key: "settings", label: "تنظیمات", href: "/student-dashboard/settings", icon: <FaCog size={16} /> },
 ];
 
 const librarianNav: NavItem[] = [
@@ -39,6 +41,7 @@ const librarianNav: NavItem[] = [
   { key: "shelves", label: "مدیریت قفسه‌ها", href: "/librarian-dashboard/shelves", icon: <FaBoxes size={16} /> },
   { key: "loans", label: "امانت‌های فعال", href: "/librarian-dashboard/loans", icon: <FaClipboardList size={16} /> },
   { key: "reports", label: "گزارش‌ها", href: "/librarian-dashboard/reports", icon: <FaChartBar size={16} /> },
+  { key: "settings", label: "تنظیمات", href: "/librarian-dashboard/settings", icon: <FaCog size={16} /> },
 ];
 
 const adminNav: NavItem[] = [
