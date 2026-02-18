@@ -188,6 +188,7 @@ class Borrow(models.Model):
     borrower_id = models.CharField(max_length=64, null=True, blank=True, help_text="External user ID from Auth service")
     borrower_username = models.CharField(max_length=150, null=True, blank=True)
     borrower_role = models.CharField(max_length=50, null=True, blank=True)
+    borrower_student_number = models.CharField(max_length=20, null=True, blank=True, verbose_name="شماره دانشجویی")
 
     def save(self, *args, **kwargs):
         # Decrease available copies when borrowed

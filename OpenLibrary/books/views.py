@@ -155,6 +155,7 @@ class BorrowViewSet(viewsets.ModelViewSet):
                 "borrower_id": getattr(user, "id", None),
                 "borrower_username": getattr(user, "username", None),
                 "borrower_role": getattr(user, "role", None),
+                "borrower_student_number": getattr(user, "student_number", None),
             }
         serializer.save(**borrower_kwargs)
 

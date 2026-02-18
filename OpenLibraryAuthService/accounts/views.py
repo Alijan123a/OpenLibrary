@@ -52,6 +52,7 @@ class UserRoleView(APIView):
             "role": role,
             "user_id": user.id,
             "username": user.username,
+            "student_number": getattr(user, "student_number", None) or "",
         })
 
 

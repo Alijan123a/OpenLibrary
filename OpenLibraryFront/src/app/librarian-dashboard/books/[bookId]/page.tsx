@@ -307,6 +307,7 @@ function AssignModal({
 interface BorrowerRow {
   id: number;
   borrower_username: string;
+  borrower_student_number?: string | null;
   borrowed_date: string;
   due_date: string;
   return_date: string | null;
@@ -426,9 +427,13 @@ function BookDetailsContent() {
         const endDate = b.return_date ? new Date(b.return_date) : now;
         const overdueDays = Math.max(0, Math.floor((endDate.getTime() - dueDate.getTime()) / DAY_MS));
         const status: BorrowerRow["status"] = b.return_date ? "returned" : overdueDays > 0 ? "overdue" : "active";
+        const borrowerDisplay = b.borrower_student_number
+          ? `${b.borrower_username || "—"} (${b.borrower_student_number})`
+          : (b.borrower_username || "—");
         return {
           id: b.id,
-          borrower_username: b.borrower_username || "—",
+          borrower_username: borrowerDisplay,
+          borrower_student_number: b.borrower_student_number,
           borrowed_date: b.borrowed_date,
           due_date: dueDate.toISOString(),
           return_date: b.return_date,

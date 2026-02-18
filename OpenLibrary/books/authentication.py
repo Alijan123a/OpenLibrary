@@ -9,13 +9,14 @@ from rest_framework.exceptions import AuthenticationFailed
 class TokenUser:
     """Lightweight user-like object built from Auth Service token verification.
 
-    Attributes come from Auth Service GET /api/user-role/ (user_id, username, role).
+    Attributes come from Auth Service GET /api/user-role/ (user_id, username, role, student_number).
     """
 
-    def __init__(self, user_id, username: str, role: str):
+    def __init__(self, user_id, username: str, role: str, student_number: str = ""):
         self.id = str(user_id) if user_id is not None else None
         self.username = username or ""
         self.role = (role or "unknown").strip().lower()
+        self.student_number = (student_number or "").strip() or None
         self.is_authenticated = True
 
     def __str__(self):
@@ -63,6 +64,7 @@ class AuthServiceAuthentication(BaseAuthentication):
         user_id = data.get("user_id")
         username = data.get("username", "")
         role = (data.get("role") or "unknown").strip().lower()
+        student_number = data.get("student_number") or ""
 
-        user = TokenUser(user_id=user_id, username=username, role=role)
+        user = TokenUser(user_id=user_id, username=username, role=role, student_number=student_number)
         return (user, None)

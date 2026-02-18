@@ -20,7 +20,7 @@ class UserListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        fields = ["id", "username", "email", "role", "is_active"]
+        fields = ["id", "username", "email", "role", "is_active", "student_number"]
 
     def get_role(self, obj):
         return _user_role(obj)
@@ -28,16 +28,23 @@ class UserListSerializer(serializers.ModelSerializer):
 
 class UserCreateSerializer(serializers.ModelSerializer):
     role = serializers.ChoiceField(choices=["admin", "librarian", "student"], write_only=True)
+    student_number = serializers.CharField(max_length=20, required=False, allow_blank=True)
 
     class Meta:
         model = CustomUser
-        fields = ["username", "password", "email", "role"]
+        fields = ["username", "password", "email", "role", "student_number"]
         extra_kwargs = {"password": {"write_only": True}}
+
+    def validate(self, attrs):
+        if attrs.get("role") == "student" and not (attrs.get("student_number") or "").strip():
+            raise serializers.ValidationError({"student_number": "شماره دانشجویی برای دانشجو الزامی است."})
+        return attrs
 
     def create(self, validated_data):
         role = validated_data.pop("role")
         password = validated_data.pop("password")
-        user = CustomUser.objects.create_user(**validated_data, password=password)
+        student_number = validated_data.pop("student_number", "") or None
+        user = CustomUser.objects.create_user(**validated_data, password=password, student_number=student_number)
         group_name = ROLE_TO_GROUP.get(role, "Student")
         group = Group.objects.filter(name=group_name).first()
         if group:
@@ -47,13 +54,17 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
 class UserUpdateSerializer(serializers.ModelSerializer):
     role = serializers.ChoiceField(choices=["admin", "librarian", "student"], required=False)
+    student_number = serializers.CharField(max_length=20, required=False, allow_blank=True)
 
     class Meta:
         model = CustomUser
-        fields = ["username", "email", "role", "is_active"]
+        fields = ["username", "email", "role", "is_active", "student_number"]
 
     def update(self, instance, validated_data):
         role = validated_data.pop("role", None)
+        student_number = validated_data.pop("student_number", None)
+        if student_number is not None:
+            instance.student_number = student_number or None
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         if role is not None:

@@ -14,6 +14,7 @@ export interface User {
   email: string;
   role: string;
   is_active: boolean;
+  student_number?: string | null;
 }
 
 function getToken(): string {
@@ -48,7 +49,7 @@ export async function getUserById(id: number): Promise<User> {
 }
 
 /** Create a user via Auth Service. */
-export async function createUser(data: { username: string; password: string; email: string; role: string }): Promise<User> {
+export async function createUser(data: { username: string; password: string; email: string; role: string; student_number?: string }): Promise<User> {
   const res = await fetch(`${AUTH_BASE_URL}/api/users/`, {
     method: "POST",
     headers: {
@@ -65,7 +66,7 @@ export async function createUser(data: { username: string; password: string; ema
 }
 
 /** Update a user. */
-export async function updateUser(id: number, data: Partial<{ username: string; email: string; role: string; is_active: boolean }>): Promise<User> {
+export async function updateUser(id: number, data: Partial<{ username: string; email: string; role: string; is_active: boolean; student_number?: string }>): Promise<User> {
   const res = await fetch(`${AUTH_BASE_URL}/api/users/${id}/`, {
     method: "PATCH",
     headers: {

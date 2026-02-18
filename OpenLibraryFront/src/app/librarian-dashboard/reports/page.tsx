@@ -11,6 +11,7 @@ import { booksApi, type Book } from "@/lib/books";
 interface OverdueRow {
   id: number;
   borrower: string;
+  borrowerStudentNumber?: string | null;
   shelfBook: number;
   borrowedDate: string;
   daysOverdue: number;
@@ -33,9 +34,12 @@ function ReportsContent() {
           .map((b) => {
             const due = new Date(new Date(b.borrowed_date).getTime() + 14 * 24 * 60 * 60 * 1000);
             const daysOverdue = Math.floor((now.getTime() - due.getTime()) / (24 * 60 * 60 * 1000));
+            const borrowerName = b.borrower_username || "—";
+            const borrowerDisplay = b.borrower_student_number ? `${borrowerName} (${b.borrower_student_number})` : borrowerName;
             return {
               id: b.id,
-              borrower: b.borrower_username || "—",
+              borrower: borrowerDisplay,
+              borrowerStudentNumber: b.borrower_student_number,
               shelfBook: b.shelf_book,
               borrowedDate: b.borrowed_date,
               daysOverdue,
@@ -52,7 +56,7 @@ function ReportsContent() {
 
   const overdueColumns: Column<OverdueRow>[] = [
     { key: "id", header: "#", render: (r) => r.id, className: "w-12" },
-    { key: "borrower", header: "کاربر" },
+    { key: "borrower", header: "دانشجو" },
     { key: "shelfBook", header: "قفسه-کتاب", render: (r) => r.shelfBook },
     {
       key: "borrowedDate",

@@ -31,9 +31,15 @@ function LoansContent() {
     return getStatus(b).key === filter;
   });
 
+  const borrowerDisplay = (r: Borrow) => {
+    const name = r.borrower_username || "—";
+    const num = r.borrower_student_number;
+    return num ? `${name} (${num})` : name;
+  };
+
   const columns: Column<Borrow>[] = [
     { key: "id", header: "#", render: (r) => r.id, className: "w-12" },
-    { key: "borrower_username", header: "کاربر", render: (r) => r.borrower_username || "—" },
+    { key: "borrower_username", header: "دانشجو", render: (r) => borrowerDisplay(r) },
     { key: "shelf_book", header: "قفسه‌-کتاب", render: (r) => r.shelf_book },
     {
       key: "borrowed_date",

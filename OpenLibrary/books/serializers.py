@@ -43,5 +43,6 @@ class BorrowListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'shelf_book', 'shelf_location', 'book_title', 'book_author',
             'borrowed_date', 'return_date', 'borrower_id', 'borrower_username', 'borrower_role',
+            'borrower_student_number',
         ]
 

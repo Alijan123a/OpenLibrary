@@ -48,22 +48,24 @@ function EditStudentModal({
   saving: boolean;
   error: string;
   onClose: () => void;
-  onSave: (payload: { username: string; email: string }) => Promise<void>;
+  onSave: (payload: { username: string; email: string; student_number?: string }) => Promise<void>;
 }) {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
+  const [studentNumber, setStudentNumber] = useState("");
 
   useEffect(() => {
     if (!open) return;
     setUsername(user?.username || "");
     setEmail(user?.email || "");
+    setStudentNumber(user?.student_number ?? "");
   }, [open, user]);
 
   if (!open) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await onSave({ username, email });
+    await onSave({ username, email, student_number: studentNumber.trim() || undefined });
   };
 
   return (
@@ -80,6 +82,10 @@ function EditStudentModal({
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">ایمیل</label>
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">شماره دانشجویی</label>
+            <input value={studentNumber} onChange={(e) => setStudentNumber(e.target.value)} placeholder="مثال: 12345678" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400" />
           </div>
           <div className="flex gap-3 pt-2">
             <button type="submit" disabled={saving} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg disabled:opacity-50">
@@ -132,6 +138,7 @@ function StudentDetailsContent() {
           email: fallbackEmail,
           role: "student",
           is_active: true,
+          student_number: searchParams.get("student_number") ?? undefined,
         });
       }
 
@@ -207,7 +214,7 @@ function StudentDetailsContent() {
     { key: "penalty", header: "جریمه", render: (row) => row.penalty > 0 ? toMoney(row.penalty) : "—" },
   ];
 
-  const handleEditSave = async (payload: { username: string; email: string }) => {
+  const handleEditSave = async (payload: { username: string; email: string; student_number?: string }) => {
     setSavingEdit(true);
     setActionError("");
     try {
@@ -300,6 +307,7 @@ function StudentDetailsContent() {
         <div className="grid gap-3 sm:grid-cols-3 text-sm text-gray-700">
           <div>شناسه: <span className="font-medium">{student?.id ?? "—"}</span></div>
           <div>نام کاربری: <span className="font-medium">{student?.username ?? "—"}</span></div>
+          <div>شماره دانشجویی: <span className="font-medium">{student?.student_number || "—"}</span></div>
           <div>ایمیل: <span className="font-medium">{student?.email || "—"}</span></div>
         </div>
       </div>

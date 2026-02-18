@@ -15,6 +15,7 @@ export interface Borrow {
   borrower_id: string | null;
   borrower_username: string | null;
   borrower_role: string | null;
+  borrower_student_number?: string | null;
 }
 
 /** Fetch all borrows (student sees their own, librarian sees all). (Handles paginated response from Django REST Framework) */

@@ -22,6 +22,7 @@ function StudentModal({
 }) {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
+  const [studentNumber, setStudentNumber] = useState("");
   const [password, setPassword] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -30,10 +31,12 @@ function StudentModal({
     if (student) {
       setUsername(student.username);
       setEmail(student.email);
+      setStudentNumber(student.student_number ?? "");
       setPassword("");
     } else {
       setUsername("");
       setEmail("");
+      setStudentNumber("");
       setPassword("");
     }
     setError("");
@@ -47,10 +50,11 @@ function StudentModal({
     setError("");
     try {
       if (student) {
-        await updateUser(student.id, { username, email });
+        await updateUser(student.id, { username, email, student_number: studentNumber.trim() || undefined });
       } else {
         if (!password) { setError("رمز عبور الزامی است"); setSaving(false); return; }
-        await createUser({ username, password, email, role: "student" });
+        if (!studentNumber.trim()) { setError("شماره دانشجویی الزامی است"); setSaving(false); return; }
+        await createUser({ username, password, email, role: "student", student_number: studentNumber.trim() });
       }
       onSaved();
       onClose();
@@ -76,6 +80,10 @@ function StudentModal({
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">ایمیل</label>
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">شماره دانشجویی {!student && "*"}</label>
+            <input value={studentNumber} onChange={(e) => setStudentNumber(e.target.value)} required={!student} placeholder="مثال: 12345678" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400" />
           </div>
           {!student && (
             <div>
@@ -123,9 +131,12 @@ function StudentsContent() {
     setDeleteId(null);
   };
 
+  const studentDisplay = (r: User) =>
+    r.student_number ? `${r.username} (${r.student_number})` : r.username;
+
   const columns: Column<User>[] = [
     { key: "id", header: "#", render: (r) => r.id, className: "w-12" },
-    { key: "username", header: "نام کاربری", render: (r) => <span className="font-medium">{r.username}</span> },
+    { key: "username", header: "دانشجو", render: (r) => <span className="font-medium">{studentDisplay(r)}</span> },
     { key: "email", header: "ایمیل" },
     {
       key: "is_active",
