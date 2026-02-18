@@ -142,18 +142,26 @@ function StudentDetailsContent() {
         });
       }
 
+      let studentData: User | null = null;
       try {
-        const studentData = await getUserById(studentId);
+        studentData = await getUserById(studentId);
         setStudent(studentData);
       } catch {
-        // Keep page usable even if user-details endpoint is unavailable.
         setWarning("اطلاعات پروفایل دانشجو از سرویس احراز هویت دریافت نشد، اما تاریخچه امانت قابل نمایش است.");
+        studentData = searchParams.get("username")
+          ? { id: studentId, username: searchParams.get("username")!, email: searchParams.get("email") || "", role: "student", is_active: true, student_number: searchParams.get("student_number") ?? undefined }
+          : null;
       }
 
       try {
         const allBorrows = await getBorrows();
         const now = new Date();
-        const studentBorrows = allBorrows.filter((borrow) => String(borrow.borrower_id) === String(studentId));
+        const studentUsername = (studentData?.username || searchParams.get("username") || "").toLowerCase();
+        const studentBorrows = allBorrows.filter(
+          (borrow) =>
+            String(borrow.borrower_id) === String(studentId) ||
+            (studentUsername && String(borrow.borrower_username || "").toLowerCase() === studentUsername)
+        );
         const mappedRows = studentBorrows.map((borrow) => {
           const borrowedAt = new Date(borrow.borrowed_date);
           const dueDate = new Date(borrowedAt.getTime() + BORROW_DAYS * DAY_MS);

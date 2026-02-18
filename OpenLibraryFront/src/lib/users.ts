@@ -23,7 +23,7 @@ function getToken(): string {
   return token;
 }
 
-/** Fetch users from Auth Service. Admin sees all; librarian sees only students. */
+/** Fetch users from Auth Service. Admin sees all; librarian sees only students. Handles paginated response. */
 export async function getUsers(role?: "admin" | "librarian" | "student"): Promise<User[]> {
   const url = role ? `${AUTH_BASE_URL}/api/users/?role=${role}` : `${AUTH_BASE_URL}/api/users/`;
   const res = await fetch(url, {
@@ -33,7 +33,10 @@ export async function getUsers(role?: "admin" | "librarian" | "student"): Promis
     const data = await res.json().catch(() => ({}));
     throw new Error(data.detail || `Failed to fetch users: ${res.status}`);
   }
-  return res.json();
+  const data = await res.json();
+  if (Array.isArray(data)) return data;
+  if (data?.results && Array.isArray(data.results)) return data.results;
+  return [];
 }
 
 /** Fetch one user by id from Auth Service. */
