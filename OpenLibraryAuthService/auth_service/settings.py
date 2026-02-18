@@ -7,6 +7,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-secret-change-me")
 DEBUG = True
 ALLOWED_HOSTS = ["*"]
+CSRF_TRUSTED_ORIGINS = os.getenv(
+    "CSRF_TRUSTED_ORIGINS",
+    "https://openlibrary-auth.liara.run,https://openlibrary-frontend.liara.run"
+).split(",")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
