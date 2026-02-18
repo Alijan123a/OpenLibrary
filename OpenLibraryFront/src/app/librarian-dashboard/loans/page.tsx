@@ -64,7 +64,7 @@ function LoansContent() {
       <PageHeader title="امانت‌های فعال" description="لیست تمامی امانت‌های کتابخانه" />
 
       {/* Filter tabs */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex flex-wrap gap-2 mb-4">
         {[
           { key: "all", label: "همه" },
           { key: "active", label: "فعال" },

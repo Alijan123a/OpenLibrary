@@ -87,7 +87,7 @@ function EditStudentModal({
             <label className="block text-xs font-medium text-gray-600 mb-1">شماره دانشجویی</label>
             <input value={studentNumber} onChange={(e) => setStudentNumber(e.target.value)} placeholder="مثال: 12345678" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400" />
           </div>
-          <div className="flex gap-3 pt-2">
+          <div className="flex flex-wrap gap-3 pt-2">
             <button type="submit" disabled={saving} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg disabled:opacity-50">
               {saving ? "..." : "ذخیره"}
             </button>
@@ -247,7 +247,7 @@ function StudentDetailsContent() {
         title="پرونده دانشجو"
         description={student ? `اطلاعات امانت‌ها و جریمه‌های ${student.username}` : "مشاهده تاریخچه امانت و جریمه‌ها"}
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setEditOpen(true)}
               className="px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg"

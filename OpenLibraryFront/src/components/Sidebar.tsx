@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout } from "@/lib/auth";
@@ -15,6 +16,8 @@ import {
   FaUpload,
   FaUsersCog,
   FaCog,
+  FaBars,
+  FaTimes,
 } from "react-icons/fa";
 
 export type UserRole = "student" | "librarian" | "admin";
@@ -69,51 +72,85 @@ function getRoleLabel(role: UserRole): string {
 
 interface SidebarProps {
   role: UserRole;
+  mobileOpen: boolean;
+  onToggle: () => void;
 }
 
-export default function Sidebar({ role }: SidebarProps) {
+export default function Sidebar({ role, mobileOpen, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const navItems = getNavItems(role);
 
+  useEffect(() => {
+    if (mobileOpen) onToggle();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
   return (
-    <aside className="fixed right-0 top-0 bottom-0 w-56 bg-gray-900 text-gray-300 flex flex-col z-40">
-      {/* Header */}
-      <div className="px-5 py-5 border-b border-gray-800">
-        <h2 className="text-sm font-bold text-white tracking-wide">سامانه کتابخانه</h2>
-        <p className="text-xs text-gray-500 mt-0.5">{getRoleLabel(role)}</p>
-      </div>
+    <>
+      {/* Overlay on mobile */}
+      {mobileOpen && (
+        <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={onToggle} />
+      )}
 
-      {/* Navigation */}
-      <nav className="flex-1 py-3 overflow-y-auto">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href;
-          return (
-            <Link
-              key={item.key}
-              href={item.href}
-              className={`flex items-center gap-3 px-5 py-2.5 text-sm transition-colors ${
-                isActive
-                  ? "bg-gray-800 text-white border-l-2 border-blue-500"
-                  : "hover:bg-gray-800/60 hover:text-white"
-              }`}
-            >
-              <span className="opacity-70">{item.icon}</span>
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
+      <aside
+        className={`fixed top-0 bottom-0 right-0 w-56 bg-gray-900 text-gray-300 flex flex-col z-50 transition-transform duration-200 ease-in-out
+          ${mobileOpen ? "translate-x-0" : "translate-x-full"} lg:translate-x-0`}
+      >
+        {/* Header */}
+        <div className="px-5 py-5 border-b border-gray-800 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-bold text-white tracking-wide">سامانه کتابخانه</h2>
+            <p className="text-xs text-gray-500 mt-0.5">{getRoleLabel(role)}</p>
+          </div>
+          <button onClick={onToggle} className="lg:hidden text-gray-400 hover:text-white">
+            <FaTimes size={18} />
+          </button>
+        </div>
 
-      {/* Logout */}
-      <div className="border-t border-gray-800 p-3">
-        <button
-          onClick={logout}
-          className="flex items-center gap-3 w-full px-3 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
-        >
-          <FaSignOutAlt size={14} />
-          <span>خروج</span>
-        </button>
-      </div>
-    </aside>
+        {/* Navigation */}
+        <nav className="flex-1 py-3 overflow-y-auto">
+          {navItems.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.key}
+                href={item.href}
+                className={`flex items-center gap-3 px-5 py-2.5 text-sm transition-colors ${
+                  isActive
+                    ? "bg-gray-800 text-white border-l-2 border-blue-500"
+                    : "hover:bg-gray-800/60 hover:text-white"
+                }`}
+              >
+                <span className="opacity-70">{item.icon}</span>
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Logout */}
+        <div className="border-t border-gray-800 p-3">
+          <button
+            onClick={logout}
+            className="flex items-center gap-3 w-full px-3 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+          >
+            <FaSignOutAlt size={14} />
+            <span>خروج</span>
+          </button>
+        </div>
+      </aside>
+    </>
+  );
+}
+
+export function MobileMenuButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="lg:hidden p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+      aria-label="باز کردن منو"
+    >
+      <FaBars size={18} />
+    </button>
   );
 }

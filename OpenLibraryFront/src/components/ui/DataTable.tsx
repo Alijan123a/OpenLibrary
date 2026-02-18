@@ -8,6 +8,7 @@ export interface Column<T> {
   header: string;
   render?: (row: T) => React.ReactNode;
   className?: string;
+  hideOnMobile?: boolean;
 }
 
 interface DataTableProps<T> {
@@ -45,14 +46,14 @@ export default function DataTable<T>({
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto -mx-px">
+        <table className="w-full text-sm min-w-[500px]">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50">
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className={`px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider ${col.className || ""}`}
+                  className={`px-3 sm:px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap ${col.hideOnMobile ? "hidden sm:table-cell" : ""} ${col.className || ""}`}
                 >
                   {col.header}
                 </th>
@@ -63,7 +64,7 @@ export default function DataTable<T>({
             {data.map((row) => (
               <tr key={keyExtractor(row)} className="hover:bg-gray-50 transition-colors">
                 {columns.map((col) => (
-                  <td key={col.key} className={`px-4 py-3 text-gray-700 ${col.className || ""}`}>
+                  <td key={col.key} className={`px-3 sm:px-4 py-3 text-gray-700 ${col.hideOnMobile ? "hidden sm:table-cell" : ""} ${col.className || ""}`}>
                     {col.render ? col.render(row) : (row as Record<string, unknown>)[col.key] as React.ReactNode}
                   </td>
                 ))}
