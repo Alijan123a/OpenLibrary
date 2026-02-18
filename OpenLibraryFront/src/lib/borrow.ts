@@ -77,23 +77,37 @@ export async function createBorrow(shelfBookId: number): Promise<Borrow> {
   return res.json();
 }
 
-/** Return a borrowed book by updating its record. */
-export async function returnBook(borrowId: number): Promise<Borrow> {
+/** Fetch shelves for return dropdown. Accessible to students and librarians. */
+export async function getShelvesForReturn(): Promise<{ id: number; location: string }[]> {
   const token = getAuthToken();
   if (!token) throw new Error("Not authenticated");
 
-  const res = await fetch(`${API_BASE_URL}/api/borrow/${borrowId}/`, {
-    method: "PATCH",
+  const res = await fetch(`${API_BASE_URL}/api/borrow/shelves-for-return/`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`Failed to fetch shelves: ${res.status}`);
+  const data = await res.json();
+  return Array.isArray(data) ? data : data?.results ?? [];
+}
+
+/** Return a borrowed book to the specified shelf. */
+export async function returnBook(borrowId: number, shelfId: number): Promise<Borrow> {
+  const token = getAuthToken();
+  if (!token) throw new Error("Not authenticated");
+
+  const res = await fetch(`${API_BASE_URL}/api/borrow/${borrowId}/return/`, {
+    method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ return_date: new Date().toISOString() }),
+    body: JSON.stringify({ shelf_id: shelfId }),
   });
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.detail || `Failed to return book: ${res.status}`);
+    const msg = Array.isArray(data.detail) ? data.detail[0] : data.detail;
+    throw new Error(msg || `Failed to return book: ${res.status}`);
   }
   return res.json();
 }

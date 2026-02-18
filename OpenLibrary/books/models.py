@@ -200,10 +200,22 @@ class Borrow(models.Model):
         super().save(*args, **kwargs)
 
     def return_book(self):
-        """Return the borrowed book and increase available copies."""
+        """Return the borrowed book to the original shelf (increase available copies)."""
         self.return_date = now()
         self.shelf_book.return_book()
         self.save()
+
+    def return_book_to_shelf(self, shelf):
+        """Return the borrowed book to the specified shelf. Adds 1 copy to that shelf."""
+        book = self.shelf_book.book
+        shelf_book, _ = ShelfBook.objects.get_or_create(
+            shelf=shelf,
+            book=book,
+            defaults={"copies_in_shelf": 0},
+        )
+        shelf_book.return_book()
+        self.return_date = now()
+        self.save(update_fields=["return_date"])
 
 
 class AudioBookUpload(models.Model):

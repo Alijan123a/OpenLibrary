@@ -209,6 +209,32 @@ class BorrowViewSet(viewsets.ModelViewSet):
             }
         serializer.save(**borrower_kwargs)
 
+    @action(detail=False, methods=["get"], url_path="shelves-for-return", permission_classes=[IsAuthenticated])
+    def shelves_for_return(self, request):
+        """List shelves for the return dropdown. Accessible to all authenticated users."""
+        shelves = Shelf.objects.all().order_by("location").values("id", "location")
+        return Response(list(shelves))
+
+    @action(detail=True, methods=["post"], url_path="return", permission_classes=[IsAuthenticated, BorrowObjectPermission])
+    def return_to_shelf(self, request, pk=None):
+        """Return a borrowed book to the specified shelf. Body: { shelf_id: int }."""
+        borrow = self.get_object()
+        if borrow.return_date:
+            raise DRFValidationError("این کتاب قبلاً بازگردانده شده است.")
+        shelf_id = request.data.get("shelf_id")
+        if not shelf_id:
+            raise DRFValidationError("shelf_id الزامی است.")
+        try:
+            shelf = Shelf.objects.get(pk=shelf_id)
+        except Shelf.DoesNotExist:
+            raise DRFValidationError("قفسه یافت نشد.")
+        try:
+            borrow.return_book_to_shelf(shelf)
+        except DjangoValidationError as e:
+            raise DRFValidationError(str(e))
+        serializer = BorrowListSerializer(borrow)
+        return Response(serializer.data)
+
     def perform_update(self, serializer):
         """When return_date is set, call model's return_book() to update shelf copies."""
         instance = serializer.instance
