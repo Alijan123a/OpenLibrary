@@ -119,6 +119,13 @@ STUDENTS_DATA = [
 class Command(BaseCommand):
     help = "Seed comprehensive test data for all system testing scenarios"
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--reset-borrows",
+            action="store_true",
+            help="Delete all existing borrows before seeding (fixes duplicate borrow data)",
+        )
+
     def log(self, msg):
         try:
             self.stdout.write(msg)
@@ -127,6 +134,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         now = timezone.now()
+        reset_borrows = options.get("reset_borrows", False)
 
         # ── 0. Admin user for Django admin panel ────────────────────────────
         self.log("Creating admin user for /admin/ login...")
@@ -192,188 +200,195 @@ class Command(BaseCommand):
             if created:
                 self.log(f"  + [{isbn}] -> shelf {shelf.id} ({book.total_copies} copies)")
 
-        # Helper to create borrow without triggering model.save decrement
-        def make_borrow(sb, bid, username, snum, bdate, rdate=None):
-            """Create Borrow directly (bypassing model save() copy decrement for seed data)."""
-            borrow = Borrow(
-                shelf_book=sb,
-                borrower_id=bid,
-                borrower_username=username,
-                borrower_role="student",
-                borrower_student_number=snum,
-                return_date=rdate,
-            )
-            # bypass the save() that decrements copies
-            super(Borrow, borrow).save()
-            # manually set borrowed_date (auto_now_add)
-            Borrow.objects.filter(pk=borrow.pk).update(borrowed_date=bdate)
-            return borrow
+        # Skip borrow creation if borrows already exist (prevents duplicates on re-run)
+        # Use --reset-borrows to delete existing borrows and re-seed (fixes corrupted data)
+        if reset_borrows and Borrow.objects.exists():
+            deleted = Borrow.objects.count()
+            Borrow.objects.all().delete()
+            self.log(f"Deleted {deleted} existing borrows (--reset-borrows).")
+        if not Borrow.objects.exists():
+            # Helper to create borrow without triggering model.save decrement
+            def make_borrow(sb, bid, username, snum, bdate, rdate=None):
+                """Create Borrow directly (bypassing model save() copy decrement for seed data)."""
+                borrow = Borrow(
+                    shelf_book=sb,
+                    borrower_id=bid,
+                    borrower_username=username,
+                    borrower_role="student",
+                    borrower_student_number=snum,
+                    return_date=rdate,
+                )
+                # bypass the save() that decrements copies
+                super(Borrow, borrow).save()
+                # manually set borrowed_date (auto_now_add)
+                Borrow.objects.filter(pk=borrow.pk).update(borrowed_date=bdate)
+                return borrow
 
-        # ── 4. Borrowing scenarios ────────────────────────────────────────
-        self.log("Creating borrow scenarios...")
+            # ── 4. Borrowing scenarios ────────────────────────────────────────
+            self.log("Creating borrow scenarios...")
 
-        # --- 4a. Successful borrows (active, on time) ---
-        self.log("  Scenario: Successful borrows...")
-        successful_pairs = [
-            ("101", "ali_mohammadi", "40114001", "9786001234501"),
-            ("102", "sara_hosseini", "40114002", "9786001234502"),
-            ("103", "reza_karimi", "40114003", "9786001234503"),
-            ("104", "maryam_ahmadi", "40114004", "9786001234504"),
-            ("105", "hossein_jafari", "40114005", "9786001234505"),
-            ("106", "fateme_rezaei", "40114006", "9786001234506"),
-            ("107", "javad_noori", "40114007", "9786001234507"),
-            ("108", "neda_abbasi", "40114008", "9786001234508"),
-            ("109", "amir_sadeghi", "40114009", "9786001234509"),
-            ("110", "zahra_moradi", "40114010", "9786001234510"),
-        ]
-        for bid, uname, snum, isbn in successful_pairs:
-            sb = shelf_books[isbn]
-            make_borrow(sb, bid, uname, snum, now - timedelta(days=5))
+            # --- 4a. Successful borrows (active, on time) ---
+            self.log("  Scenario: Successful borrows...")
+            successful_pairs = [
+                ("101", "ali_mohammadi", "40114001", "9786001234501"),
+                ("102", "sara_hosseini", "40114002", "9786001234502"),
+                ("103", "reza_karimi", "40114003", "9786001234503"),
+                ("104", "maryam_ahmadi", "40114004", "9786001234504"),
+                ("105", "hossein_jafari", "40114005", "9786001234505"),
+                ("106", "fateme_rezaei", "40114006", "9786001234506"),
+                ("107", "javad_noori", "40114007", "9786001234507"),
+                ("108", "neda_abbasi", "40114008", "9786001234508"),
+                ("109", "amir_sadeghi", "40114009", "9786001234509"),
+                ("110", "zahra_moradi", "40114010", "9786001234510"),
+            ]
+            for bid, uname, snum, isbn in successful_pairs:
+                sb = shelf_books[isbn]
+                make_borrow(sb, bid, uname, snum, now - timedelta(days=5))
 
-        # --- 4b. Multiple books by same student ---
-        self.log("  Scenario: Multiple books same student...")
-        multi_isbns = ["9786001234511", "9786001234512", "9786001234513", "9786001234514", "9786001234515"]
-        for isbn in multi_isbns:
-            sb = shelf_books[isbn]
-            make_borrow(sb, "122", "omid_farahani", "40114019", now - timedelta(days=3))
+            # --- 4b. Multiple books by same student ---
+            self.log("  Scenario: Multiple books same student...")
+            multi_isbns = ["9786001234511", "9786001234512", "9786001234513", "9786001234514", "9786001234515"]
+            for isbn in multi_isbns:
+                sb = shelf_books[isbn]
+                make_borrow(sb, "122", "omid_farahani", "40114019", now - timedelta(days=3))
 
-        # --- 4c. Student 123 borrows many (limit testing) ---
-        self.log("  Scenario: Heavy borrower (limit testing)...")
-        limit_isbns = [
-            "9780262033848", "9780132350884", "9780201633610", "9780135957059",
-            "9780078022159", "9780133594140", "9781118063330",
-        ]
-        for isbn in limit_isbns:
-            sb = shelf_books[isbn]
-            make_borrow(sb, "123", "niloofar_azizi", "40114020", now - timedelta(days=7))
+            # --- 4c. Student 123 borrows many (limit testing) ---
+            self.log("  Scenario: Heavy borrower (limit testing)...")
+            limit_isbns = [
+                "9780262033848", "9780132350884", "9780201633610", "9780135957059",
+                "9780078022159", "9780133594140", "9781118063330",
+            ]
+            for isbn in limit_isbns:
+                sb = shelf_books[isbn]
+                make_borrow(sb, "123", "niloofar_azizi", "40114020", now - timedelta(days=7))
 
-        # --- 4d. Borrow same book twice (different editions) ---
-        self.log("  Scenario: Same title different edition...")
-        sb_v1 = shelf_books["9786001234501"]
-        sb_v2 = shelf_books["9786001234590"]
-        make_borrow(sb_v1, "111", "mohammad_tavakoli", "40114011", now - timedelta(days=10))
-        make_borrow(sb_v2, "111", "mohammad_tavakoli", "40114011", now - timedelta(days=2))
+            # --- 4d. Borrow same book twice (different editions) ---
+            self.log("  Scenario: Same title different edition...")
+            sb_v1 = shelf_books["9786001234501"]
+            sb_v2 = shelf_books["9786001234590"]
+            make_borrow(sb_v1, "111", "mohammad_tavakoli", "40114011", now - timedelta(days=10))
+            make_borrow(sb_v2, "111", "mohammad_tavakoli", "40114011", now - timedelta(days=2))
 
-        # ── 5. Return scenarios ───────────────────────────────────────────
-        self.log("Creating return scenarios...")
+            # ── 5. Return scenarios ───────────────────────────────────────────
+            self.log("Creating return scenarios...")
 
-        # --- 5a. Return on time (within 14 days) ---
-        self.log("  Scenario: On-time returns...")
-        ontime_data = [
-            ("126", "sina_mousavi", "40114023", "9786001234523", 10, 10),  # borrow 10d ago, return same day (0 late)
-            ("127", "setareh_alavi", "40114024", "9786001234524", 12, 12),
-            ("128", "kian_rajabi", "40114025", "9786001234525", 14, 14),   # exactly on due date
-            ("129", "yasaman_rostami", "40114026", "9786001234526", 8, 8),
-            ("130", "arash_zamani", "40114027", "9786001234527", 6, 6),
-        ]
-        for bid, uname, snum, isbn, borrow_ago, return_ago in ontime_data:
-            sb = shelf_books[isbn]
-            bdate = now - timedelta(days=borrow_ago)
-            rdate = now - timedelta(days=return_ago - borrow_ago)  # returned on same day as borrowed
-            make_borrow(sb, bid, uname, snum, bdate, rdate)
+            # --- 5a. Return on time (within 14 days) ---
+            self.log("  Scenario: On-time returns...")
+            ontime_data = [
+                ("126", "sina_mousavi", "40114023", "9786001234523", 10, 10),  # borrow 10d ago, return same day (0 late)
+                ("127", "setareh_alavi", "40114024", "9786001234524", 12, 12),
+                ("128", "kian_rajabi", "40114025", "9786001234525", 14, 14),   # exactly on due date
+                ("129", "yasaman_rostami", "40114026", "9786001234526", 8, 8),
+                ("130", "arash_zamani", "40114027", "9786001234527", 6, 6),
+            ]
+            for bid, uname, snum, isbn, borrow_ago, return_ago in ontime_data:
+                sb = shelf_books[isbn]
+                bdate = now - timedelta(days=borrow_ago)
+                rdate = now - timedelta(days=return_ago - borrow_ago)  # returned on same day as borrowed
+                make_borrow(sb, bid, uname, snum, bdate, rdate)
 
-        # --- 5b. Return before due date (early) ---
-        self.log("  Scenario: Early returns...")
-        early_data = [
-            ("101", "ali_mohammadi", "40114001", "9786001234528", 12, 5),  # borrowed 12d ago, returned 5d ago = 7 days used
-            ("102", "sara_hosseini", "40114002", "9786001234523", 8, 6),
-            ("103", "reza_karimi", "40114003", "9786001234524", 6, 4),
-            ("104", "maryam_ahmadi", "40114004", "9786001234525", 4, 3),
-            ("105", "hossein_jafari", "40114005", "9786001234526", 3, 1),
-        ]
-        for bid, uname, snum, isbn, borrow_ago, return_ago in early_data:
-            sb = shelf_books[isbn]
-            bdate = now - timedelta(days=borrow_ago)
-            rdate = now - timedelta(days=return_ago)
-            make_borrow(sb, bid, uname, snum, bdate, rdate)
+            # --- 5b. Return before due date (early) ---
+            self.log("  Scenario: Early returns...")
+            early_data = [
+                ("101", "ali_mohammadi", "40114001", "9786001234528", 12, 5),  # borrowed 12d ago, returned 5d ago = 7 days used
+                ("102", "sara_hosseini", "40114002", "9786001234523", 8, 6),
+                ("103", "reza_karimi", "40114003", "9786001234524", 6, 4),
+                ("104", "maryam_ahmadi", "40114004", "9786001234525", 4, 3),
+                ("105", "hossein_jafari", "40114005", "9786001234526", 3, 1),
+            ]
+            for bid, uname, snum, isbn, borrow_ago, return_ago in early_data:
+                sb = shelf_books[isbn]
+                bdate = now - timedelta(days=borrow_ago)
+                rdate = now - timedelta(days=return_ago)
+                make_borrow(sb, bid, uname, snum, bdate, rdate)
 
-        # ── 6. Late return scenarios ──────────────────────────────────────
-        self.log("Creating late return scenarios...")
-        DUE_DAYS = 14
+            # ── 6. Late return scenarios ──────────────────────────────────────
+            self.log("Creating late return scenarios...")
+            DUE_DAYS = 14
 
-        # --- 6a. 1-3 days late ---
-        self.log("  Scenario: 1-3 days late...")
-        late_short = [
-            ("106", "fateme_rezaei", "40114006", "9786001234527", 15, 0),   # 1 day late (15-14=1)
-            ("107", "javad_noori", "40114007", "9786001234528", 16, 0),     # 2 days late
-            ("108", "neda_abbasi", "40114008", "9786001234523", 17, 0),     # 3 days late
-            ("112", "elham_ghasemi", "40114012", "9786001234524", 15, 1),   # 1 day late, returned yesterday
-            ("113", "behnam_sharifi", "40114013", "9786001234525", 16, 1),  # 2 days late, returned yesterday
-            ("114", "shirin_nikoo", "40114014", "9786001234526", 17, 1),    # 3 days late, returned yesterday
-        ]
-        for bid, uname, snum, isbn, borrow_ago, return_ago in late_short:
-            sb = shelf_books[isbn]
-            bdate = now - timedelta(days=borrow_ago)
-            rdate = now - timedelta(days=return_ago) if return_ago > 0 else None
-            make_borrow(sb, bid, uname, snum, bdate, rdate)
+            # --- 6a. 1-3 days late ---
+            self.log("  Scenario: 1-3 days late...")
+            late_short = [
+                ("106", "fateme_rezaei", "40114006", "9786001234527", 15, 0),   # 1 day late (15-14=1)
+                ("107", "javad_noori", "40114007", "9786001234528", 16, 0),     # 2 days late
+                ("108", "neda_abbasi", "40114008", "9786001234523", 17, 0),     # 3 days late
+                ("112", "elham_ghasemi", "40114012", "9786001234524", 15, 1),   # 1 day late, returned yesterday
+                ("113", "behnam_sharifi", "40114013", "9786001234525", 16, 1),  # 2 days late, returned yesterday
+                ("114", "shirin_nikoo", "40114014", "9786001234526", 17, 1),    # 3 days late, returned yesterday
+            ]
+            for bid, uname, snum, isbn, borrow_ago, return_ago in late_short:
+                sb = shelf_books[isbn]
+                bdate = now - timedelta(days=borrow_ago)
+                rdate = now - timedelta(days=return_ago) if return_ago > 0 else None
+                make_borrow(sb, bid, uname, snum, bdate, rdate)
 
-        # --- 6b. 7 days late ---
-        self.log("  Scenario: 7 days late...")
-        late_7d = [
-            ("109", "amir_sadeghi", "40114009", "9786001234527", 21, 0),    # 7 days late, still active
-            ("115", "danial_soltani", "40114015", "9786001234528", 21, 1),  # 7 days late, returned yesterday
-            ("126", "sina_mousavi", "40114023", "9786001234510", 21, 2),    # 7 days late, returned 2d ago
-        ]
-        for bid, uname, snum, isbn, borrow_ago, return_ago in late_7d:
-            sb = shelf_books[isbn]
-            bdate = now - timedelta(days=borrow_ago)
-            rdate = now - timedelta(days=return_ago) if return_ago > 0 else None
-            make_borrow(sb, bid, uname, snum, bdate, rdate)
+            # --- 6b. 7 days late ---
+            self.log("  Scenario: 7 days late...")
+            late_7d = [
+                ("109", "amir_sadeghi", "40114009", "9786001234527", 21, 0),    # 7 days late, still active
+                ("115", "danial_soltani", "40114015", "9786001234528", 21, 1),  # 7 days late, returned yesterday
+                ("126", "sina_mousavi", "40114023", "9786001234510", 21, 2),    # 7 days late, returned 2d ago
+            ]
+            for bid, uname, snum, isbn, borrow_ago, return_ago in late_7d:
+                sb = shelf_books[isbn]
+                bdate = now - timedelta(days=borrow_ago)
+                rdate = now - timedelta(days=return_ago) if return_ago > 0 else None
+                make_borrow(sb, bid, uname, snum, bdate, rdate)
 
-        # --- 6c. 30+ days late ---
-        self.log("  Scenario: 30+ days late...")
-        late_30d = [
-            ("124", "mehdi_hashemi", "40114021", "9786001234511", 44, 0),   # 30 days late, still active
-            ("125", "parisa_norouzi", "40114022", "9786001234512", 50, 5),  # 36 days late, returned 5d ago
-            ("127", "setareh_alavi", "40114024", "9786001234513", 60, 3),   # 46 days late, returned 3d ago
-        ]
-        for bid, uname, snum, isbn, borrow_ago, return_ago in late_30d:
-            sb = shelf_books[isbn]
-            bdate = now - timedelta(days=borrow_ago)
-            rdate = now - timedelta(days=return_ago) if return_ago > 0 else None
-            make_borrow(sb, bid, uname, snum, bdate, rdate)
+            # --- 6c. 30+ days late ---
+            self.log("  Scenario: 30+ days late...")
+            late_30d = [
+                ("124", "mehdi_hashemi", "40114021", "9786001234511", 44, 0),   # 30 days late, still active
+                ("125", "parisa_norouzi", "40114022", "9786001234512", 50, 5),  # 36 days late, returned 5d ago
+                ("127", "setareh_alavi", "40114024", "9786001234513", 60, 3),   # 46 days late, returned 3d ago
+            ]
+            for bid, uname, snum, isbn, borrow_ago, return_ago in late_30d:
+                sb = shelf_books[isbn]
+                bdate = now - timedelta(days=borrow_ago)
+                rdate = now - timedelta(days=return_ago) if return_ago > 0 else None
+                make_borrow(sb, bid, uname, snum, bdate, rdate)
 
-        # --- 6d. Very large delay (90+ days) ---
-        self.log("  Scenario: Very large delay (90+ days)...")
-        late_extreme = [
-            ("124", "mehdi_hashemi", "40114021", "9786001234514", 120, 2),  # 106 days late, returned 2d ago
-            ("128", "kian_rajabi", "40114025", "9786001234515", 200, 10),   # 186 days late, returned 10d ago
-        ]
-        for bid, uname, snum, isbn, borrow_ago, return_ago in late_extreme:
-            sb = shelf_books[isbn]
-            bdate = now - timedelta(days=borrow_ago)
-            rdate = now - timedelta(days=return_ago)
-            make_borrow(sb, bid, uname, snum, bdate, rdate)
+            # --- 6d. Very large delay (90+ days) ---
+            self.log("  Scenario: Very large delay (90+ days)...")
+            late_extreme = [
+                ("124", "mehdi_hashemi", "40114021", "9786001234514", 120, 2),  # 106 days late, returned 2d ago
+                ("128", "kian_rajabi", "40114025", "9786001234515", 200, 10),   # 186 days late, returned 10d ago
+            ]
+            for bid, uname, snum, isbn, borrow_ago, return_ago in late_extreme:
+                sb = shelf_books[isbn]
+                bdate = now - timedelta(days=borrow_ago)
+                rdate = now - timedelta(days=return_ago)
+                make_borrow(sb, bid, uname, snum, bdate, rdate)
 
-        # ── 7. Historical (completed) borrows for student history ─────────
-        self.log("Creating historical borrow records...")
-        history_records = [
-            ("101", "ali_mohammadi", "40114001", "9786001234505", 90, 80),
-            ("101", "ali_mohammadi", "40114001", "9786001234506", 70, 60),
-            ("101", "ali_mohammadi", "40114001", "9786001234507", 50, 40),
-            ("102", "sara_hosseini", "40114002", "9786001234508", 80, 70),
-            ("102", "sara_hosseini", "40114002", "9786001234509", 60, 50),
-            ("103", "reza_karimi", "40114003", "9786001234510", 100, 88),
-            ("104", "maryam_ahmadi", "40114004", "9786001234511", 85, 75),
-            ("105", "hossein_jafari", "40114005", "9786001234512", 45, 35),
-            ("106", "fateme_rezaei", "40114006", "9786001234513", 40, 30),
-            ("107", "javad_noori", "40114007", "9786001234514", 55, 42),
-            ("108", "neda_abbasi", "40114008", "9786001234515", 65, 52),
-            ("109", "amir_sadeghi", "40114009", "9786001234501", 75, 62),
-            ("110", "zahra_moradi", "40114010", "9786001234502", 95, 82),
-            ("111", "mohammad_tavakoli", "40114011", "9786001234503", 35, 25),
-            ("112", "elham_ghasemi", "40114012", "9786001234504", 25, 15),
-            ("113", "behnam_sharifi", "40114013", "9786001234505", 30, 20),
-            ("114", "shirin_nikoo", "40114014", "9786001234506", 20, 12),
-            ("115", "danial_soltani", "40114015", "9786001234507", 28, 18),
-            ("126", "sina_mousavi", "40114023", "9786001234508", 42, 30),
-            ("129", "yasaman_rostami", "40114026", "9786001234509", 38, 26),
-        ]
-        for bid, uname, snum, isbn, borrow_ago, return_ago in history_records:
-            sb = shelf_books[isbn]
-            bdate = now - timedelta(days=borrow_ago)
-            rdate = now - timedelta(days=return_ago)
-            make_borrow(sb, bid, uname, snum, bdate, rdate)
+            # ── 7. Historical (completed) borrows for student history ─────────
+            self.log("Creating historical borrow records...")
+            history_records = [
+                ("101", "ali_mohammadi", "40114001", "9786001234505", 90, 80),
+                ("101", "ali_mohammadi", "40114001", "9786001234506", 70, 60),
+                ("101", "ali_mohammadi", "40114001", "9786001234507", 50, 40),
+                ("102", "sara_hosseini", "40114002", "9786001234508", 80, 70),
+                ("102", "sara_hosseini", "40114002", "9786001234509", 60, 50),
+                ("103", "reza_karimi", "40114003", "9786001234510", 100, 88),
+                ("104", "maryam_ahmadi", "40114004", "9786001234511", 85, 75),
+                ("105", "hossein_jafari", "40114005", "9786001234512", 45, 35),
+                ("106", "fateme_rezaei", "40114006", "9786001234513", 40, 30),
+                ("107", "javad_noori", "40114007", "9786001234514", 55, 42),
+                ("108", "neda_abbasi", "40114008", "9786001234515", 65, 52),
+                ("109", "amir_sadeghi", "40114009", "9786001234501", 75, 62),
+                ("110", "zahra_moradi", "40114010", "9786001234502", 95, 82),
+                ("111", "mohammad_tavakoli", "40114011", "9786001234503", 35, 25),
+                ("112", "elham_ghasemi", "40114012", "9786001234504", 25, 15),
+                ("113", "behnam_sharifi", "40114013", "9786001234505", 30, 20),
+                ("114", "shirin_nikoo", "40114014", "9786001234506", 20, 12),
+                ("115", "danial_soltani", "40114015", "9786001234507", 28, 18),
+                ("126", "sina_mousavi", "40114023", "9786001234508", 42, 30),
+                ("129", "yasaman_rostami", "40114026", "9786001234509", 38, 26),
+            ]
+            for bid, uname, snum, isbn, borrow_ago, return_ago in history_records:
+                sb = shelf_books[isbn]
+                bdate = now - timedelta(days=borrow_ago)
+                rdate = now - timedelta(days=return_ago)
+                make_borrow(sb, bid, uname, snum, bdate, rdate)
 
         # ── Summary ───────────────────────────────────────────────────────
         total_books = Book.objects.count()
