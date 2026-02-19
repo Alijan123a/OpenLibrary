@@ -34,9 +34,9 @@ class BorrowSerializer(serializers.ModelSerializer):
 
 class BorrowListSerializer(serializers.ModelSerializer):
     """Borrow with shelf location and book title/author for display."""
-    shelf_location = serializers.CharField(source='shelf_book.shelf.location', read_only=True)
-    book_title = serializers.CharField(source='shelf_book.book.title', read_only=True)
-    book_author = serializers.CharField(source='shelf_book.book.author', read_only=True)
+    shelf_location = serializers.SerializerMethodField()
+    book_title = serializers.SerializerMethodField()
+    book_author = serializers.SerializerMethodField()
 
     class Meta:
         model = Borrow
@@ -45,4 +45,17 @@ class BorrowListSerializer(serializers.ModelSerializer):
             'borrowed_date', 'return_date', 'borrower_id', 'borrower_username', 'borrower_role',
             'borrower_student_number',
         ]
+
+    def get_shelf_location(self, obj):
+        if obj.shelf_book:
+            return obj.shelf_book.shelf.location
+        return "—"
+
+    def get_book_title(self, obj):
+        book = obj.book or (obj.shelf_book.book if obj.shelf_book else None)
+        return book.title if book else "—"
+
+    def get_book_author(self, obj):
+        book = obj.book or (obj.shelf_book.book if obj.shelf_book else None)
+        return book.author if book else "—"
 

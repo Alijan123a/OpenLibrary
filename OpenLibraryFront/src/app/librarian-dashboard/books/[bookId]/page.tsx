@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import DashboardLayout from "@/components/DashboardLayout";
 import PageHeader from "@/components/ui/PageHeader";
@@ -335,7 +335,12 @@ function BookDetailsContent() {
   const [deleting, setDeleting] = useState(false);
   const [assignTarget, setAssignTarget] = useState<ShelfRow | null>(null);
 
-  const loadAll = async () => {
+  const loadAll = useCallback(async () => {
+    if (!bookId || Number.isNaN(bookId)) {
+      setError("شناسه کتاب معتبر نیست.");
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError("");
     try {
@@ -354,16 +359,18 @@ function BookDetailsContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [bookId]);
 
   useEffect(() => {
-    if (!bookId || Number.isNaN(bookId)) {
-      setError("شناسه کتاب معتبر نیست.");
-      setLoading(false);
-      return;
-    }
     loadAll();
-  }, [bookId]);
+  }, [loadAll]);
+
+  // Refetch when tab becomes visible (e.g. after returning a book on loans page)
+  useEffect(() => {
+    const onVisibilityChange = () => { if (document.visibilityState === "visible") loadAll(); };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [loadAll]);
 
   const shelfBookIdsForThisBook = useMemo(() => {
     const ids = new Set<number>();
@@ -395,7 +402,8 @@ function BookDetailsContent() {
       const sb = shelfBookByShelf.get(shelf.id);
       const copies_in_shelf = sb ? sb.copies_in_shelf : 0;
       const borrowed_from_shelf = sb ? activeBorrowsByShelfBook.get(sb.id) || 0 : 0;
-      const remaining_in_shelf = Math.max(copies_in_shelf - borrowed_from_shelf, 0);
+      // copies_in_shelf is already decremented on borrow, so remaining = copies_in_shelf
+      const remaining_in_shelf = copies_in_shelf;
       return {
         shelf_id: shelf.id,
         location: shelf.location,

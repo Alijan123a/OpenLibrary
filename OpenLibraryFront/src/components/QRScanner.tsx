@@ -9,7 +9,7 @@ type Props = {
   fps?: number; // how many frames per second to try scanning (default: 2)
 };
 
-export default function QRScanner({ onDetected, title = "Scan book QR", fps = 2 }: Props) {
+export default function QRScanner({ onDetected, title = "اسکن QR کتاب", fps = 2 }: Props) {
   const [qrId, setQrId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
@@ -111,46 +111,48 @@ export default function QRScanner({ onDetected, title = "Scan book QR", fps = 2 
   const supportsMedia = typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
 
   return (
-    <div className="w-full max-w-md mx-auto p-4 border rounded-lg bg-white shadow">
-      <h2 className="text-lg font-semibold mb-3">{title}</h2>
+    <div className="w-full max-w-md mx-auto p-6 border border-gray-200 rounded-lg bg-white shadow-sm">
+      <h2 className="text-base font-semibold text-gray-800 mb-3">{title}</h2>
 
       {!supportsMedia && (
-        <div className="text-sm text-red-600 mb-3">This device/browser does not support camera access. Please update your browser or use the upload flow.</div>
+        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-3">
+          این مرورگر از دسترسی به دوربین پشتیبانی نمی‌کند. لطفاً مرورگر را به‌روز کنید یا از HTTPS استفاده کنید.
+        </div>
       )}
 
-      <div className="space-x-2 mb-3">
+      <div className="flex gap-2 mb-4">
         {!scanning ? (
           <button
             onClick={startCamera}
-            className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg disabled:opacity-50"
             disabled={!supportsMedia}
           >
-            Start camera
+            روشن کردن دوربین
           </button>
         ) : (
           <button
             onClick={stopStream}
-            className="px-3 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+            className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
           >
-            Stop
+            خاموش کردن دوربین
           </button>
         )}
       </div>
 
-      <div className="relative w-full aspect-video bg-black overflow-hidden rounded">
+      <div className="relative w-full aspect-video bg-black overflow-hidden rounded-lg">
         <video ref={videoRef} className="w-full h-full object-contain" playsInline muted />
       </div>
-      {/* Offscreen canvas used for frame capture */}
       <canvas ref={canvasRef} className="hidden" />
 
       {permission === "denied" && (
-        <div className="text-sm text-red-600 mt-3">Camera permission denied. Please allow camera access in your browser settings.</div>
+        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3 mt-3">
+          دسترسی به دوربین رد شد. لطفاً در تنظیمات مرورگر اجازه دسترسی را بدهید.
+        </div>
       )}
       {error && <div className="text-sm text-red-600 mt-3">{error}</div>}
       {qrId && (
-        <div className="mt-3">
-          <div className="text-sm text-gray-700">QR Code ID detected:</div>
-          <div className="font-mono break-all bg-gray-100 p-2 rounded text-sm">{qrId}</div>
+        <div className="mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-2">
+          کد QR شناسایی شد
         </div>
       )}
     </div>

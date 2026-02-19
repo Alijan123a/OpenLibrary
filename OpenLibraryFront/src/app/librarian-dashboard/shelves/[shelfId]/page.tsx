@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import DashboardLayout from "@/components/DashboardLayout";
 import PageHeader from "@/components/ui/PageHeader";
@@ -47,7 +47,7 @@ function ShelfBooksContent() {
     setFilterTitle(initialTitle);
   }, [initialBookId, initialTitle]);
 
-  const loadAll = async () => {
+  const loadAll = useCallback(async () => {
     if (!shelfId || Number.isNaN(shelfId)) {
       setError("شناسه قفسه معتبر نیست.");
       setLoading(false);
@@ -72,11 +72,18 @@ function ShelfBooksContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [shelfId]);
 
   useEffect(() => {
     loadAll();
-  }, [shelfId]);
+  }, [loadAll]);
+
+  // Refetch when tab becomes visible (e.g. after returning a book on loans page)
+  useEffect(() => {
+    const onVisibilityChange = () => { if (document.visibilityState === "visible") loadAll(); };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [loadAll]);
 
   const bookMap = useMemo(() => {
     const map = new Map<number, Book>();
@@ -101,7 +108,8 @@ function ShelfBooksContent() {
     return shelfBooksForThisShelf.map((sb) => {
       const book = bookMap.get(sb.book);
       const borrowed = activeBorrowsByShelfBook.get(sb.id) || 0;
-      const remaining = Math.max(sb.copies_in_shelf - borrowed, 0);
+      // copies_in_shelf is already decremented on borrow, so remaining = copies_in_shelf
+      const remaining = sb.copies_in_shelf;
       return {
         shelf_book_id: sb.id,
         book_id: sb.book,

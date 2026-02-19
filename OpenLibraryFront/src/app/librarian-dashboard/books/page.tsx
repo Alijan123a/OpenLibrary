@@ -168,6 +168,13 @@ function BooksContent() {
 
   useEffect(() => { fetchBooks(); }, []);
 
+  // Refetch when tab becomes visible (e.g. after returning a book on loans page)
+  useEffect(() => {
+    const onVisibilityChange = () => { if (document.visibilityState === "visible") fetchBooks(); };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, []);
+
   const filtered = books.filter(
     (b) => b.title.toLowerCase().includes(search.toLowerCase()) || b.author.toLowerCase().includes(search.toLowerCase())
   );

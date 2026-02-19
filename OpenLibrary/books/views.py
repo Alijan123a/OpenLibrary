@@ -1,7 +1,6 @@
 import requests
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db.models import Count, Q
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
@@ -182,15 +181,12 @@ class BorrowViewSet(viewsets.ModelViewSet):
         except (ValueError, TypeError):
             raise DRFValidationError("کد QR نامعتبر است.")
 
-        # ShelfBooks for this book with at least one copy
-        shelf_books = ShelfBook.objects.filter(book=book, copies_in_shelf__gt=0).annotate(
-            active_borrows=Count("borrow", filter=Q(borrow__return_date__isnull=True))
-        )
-        available = [sb for sb in shelf_books if sb.copies_in_shelf > (sb.active_borrows or 0)]
-        if not available:
+        # ShelfBooks for this book with at least one copy (copies_in_shelf is decremented on borrow)
+        shelf_books = ShelfBook.objects.filter(book=book, copies_in_shelf__gt=0)
+        if not shelf_books.exists():
             raise DRFValidationError("نسخه‌ای از این کتاب در حال حاضر موجود نیست.")
 
-        shelf_book = available[0]
+        shelf_book = shelf_books.first()
         serializer = BorrowSerializer(data={"shelf_book": shelf_book.id})
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
@@ -232,6 +228,7 @@ class BorrowViewSet(viewsets.ModelViewSet):
             borrow.return_book_to_shelf(shelf)
         except DjangoValidationError as e:
             raise DRFValidationError(str(e))
+        borrow.refresh_from_db()  # shelf_book may have been set to null if ShelfBook was deleted
         serializer = BorrowListSerializer(borrow)
         return Response(serializer.data)
 

@@ -180,7 +180,8 @@ class ShelfBook(models.Model):
 
 class Borrow(models.Model):
     """Identity comes from JWT (Auth Service); stored in borrower_id/username/role."""
-    shelf_book = models.ForeignKey(ShelfBook, on_delete=models.CASCADE)
+    shelf_book = models.ForeignKey(ShelfBook, on_delete=models.SET_NULL, null=True, blank=True, related_name="borrows")
+    book = models.ForeignKey(Book, on_delete=models.SET_NULL, null=True, blank=True, related_name="borrows")
     borrowed_date = models.DateTimeField(auto_now_add=True)
     return_date = models.DateTimeField(null=True, blank=True)  # Nullable for ongoing loans
 
@@ -197,7 +198,13 @@ class Borrow(models.Model):
         else:
             raise ValueError("No copies available.")
 
+        if not self.book_id and self.shelf_book_id:
+            self.book = self.shelf_book.book
         super().save(*args, **kwargs)
+        # Remove book from shelf when copies_in_shelf becomes 0
+        sb = self.shelf_book
+        if sb and sb.copies_in_shelf == 0:
+            sb.delete()
 
     def return_book(self):
         """Return the borrowed book to the original shelf (increase available copies)."""
@@ -208,6 +215,7 @@ class Borrow(models.Model):
     def return_book_to_shelf(self, shelf):
         """Return the borrowed book to the specified shelf. Adds 1 copy to that shelf."""
         book = self.shelf_book.book
+        original_shelf_book = self.shelf_book
         shelf_book, _ = ShelfBook.objects.get_or_create(
             shelf=shelf,
             book=book,
@@ -216,6 +224,9 @@ class Borrow(models.Model):
         shelf_book.return_book()
         self.return_date = now()
         self.save(update_fields=["return_date"])
+        # Remove book from original shelf when copies_in_shelf is 0 (we moved the copy to another shelf)
+        if original_shelf_book.copies_in_shelf == 0:
+            original_shelf_book.delete()
 
 
 class AudioBookUpload(models.Model):
