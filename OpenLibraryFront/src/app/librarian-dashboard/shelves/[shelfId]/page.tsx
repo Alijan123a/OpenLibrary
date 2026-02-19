@@ -108,8 +108,7 @@ function ShelfBooksContent() {
     return shelfBooksForThisShelf.map((sb) => {
       const book = bookMap.get(sb.book);
       const borrowed = activeBorrowsByShelfBook.get(sb.id) || 0;
-      // copies_in_shelf is already decremented on borrow, so remaining = copies_in_shelf
-      const remaining = sb.copies_in_shelf;
+      const remaining = Math.max(sb.copies_in_shelf - borrowed, 0);
       return {
         shelf_book_id: sb.id,
         book_id: sb.book,

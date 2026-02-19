@@ -7,7 +7,7 @@ import QRScanner from "@/components/QRScanner";
 import { borrowByQr } from "@/lib/borrow";
 import { booksApi, type Book } from "@/lib/books";
 
-type ShelfOption = { shelf_book_id: number; shelf_id: number; location: string; copies_in_shelf: number };
+type ShelfOption = { shelf_book_id: number; shelf_id: number; location: string; copies_in_shelf: number; copies_available: number };
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -162,7 +162,7 @@ function ScanContent() {
                 >
                   {shelves.map((s) => (
                     <option key={s.shelf_book_id} value={s.shelf_book_id}>
-                      {s.location} ({s.copies_in_shelf} نسخه موجود)
+                      {s.location} ({s.copies_available} نسخه موجود)
                     </option>
                   ))}
                 </select>

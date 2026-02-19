@@ -192,41 +192,51 @@ class Borrow(models.Model):
     borrower_student_number = models.CharField(max_length=20, null=True, blank=True, verbose_name="شماره دانشجویی")
 
     def save(self, *args, **kwargs):
-        # Decrease available copies when borrowed
-        if self.shelf_book.copies_in_shelf > 0:
-            self.shelf_book.borrow_book()
-        else:
-            raise ValueError("No copies available.")
-
-        if not self.book_id and self.shelf_book_id:
-            self.book = self.shelf_book.book
+        is_create = self.pk is None
+        if is_create:
+            if not self.shelf_book_id:
+                raise ValueError("shelf_book is required for new borrow.")
+            # copies_in_shelf = total in shelf; available = copies_in_shelf - active_borrows (do NOT decrement on borrow)
+            active = Borrow.objects.filter(shelf_book=self.shelf_book, return_date__isnull=True).count()
+            if self.shelf_book.copies_in_shelf <= active:
+                raise ValueError("No copies available.")
+            if not self.book_id:
+                self.book = self.shelf_book.book
         super().save(*args, **kwargs)
-        # Remove book from shelf when copies_in_shelf becomes 0
-        sb = self.shelf_book
-        if sb and sb.copies_in_shelf == 0:
-            sb.delete()
 
     def return_book(self):
-        """Return the borrowed book to the original shelf (increase available copies)."""
+        """Return to same shelf: only set return_date, copies_in_shelf unchanged."""
+        if not self.shelf_book_id:
+            raise ValueError("Cannot return to original shelf: shelf was removed. Use return to different shelf.")
         self.return_date = now()
-        self.shelf_book.return_book()
-        self.save()
+        self.save(update_fields=["return_date"])
 
     def return_book_to_shelf(self, shelf):
-        """Return the borrowed book to the specified shelf. Adds 1 copy to that shelf."""
-        book = self.shelf_book.book
+        """Return to specified shelf. Same shelf: only set return_date. Different shelf: move copy."""
+        book = (self.book or (self.shelf_book.book if self.shelf_book_id else None))
+        if not book:
+            raise ValueError("Cannot return: book reference is missing.")
         original_shelf_book = self.shelf_book
-        shelf_book, _ = ShelfBook.objects.get_or_create(
+        if original_shelf_book and original_shelf_book.shelf_id == shelf.id:
+            # Same shelf: only set return_date
+            self.return_date = now()
+            self.save(update_fields=["return_date"])
+            return
+        # Different shelf: decrement original, add to target
+        shelf_book, created = ShelfBook.objects.get_or_create(
             shelf=shelf,
             book=book,
             defaults={"copies_in_shelf": 0},
         )
-        shelf_book.return_book()
+        shelf_book.copies_in_shelf += 1
+        shelf_book.save()
+        if original_shelf_book:
+            original_shelf_book.copies_in_shelf -= 1
+            original_shelf_book.save()
+            if original_shelf_book.copies_in_shelf == 0:
+                original_shelf_book.delete()
         self.return_date = now()
         self.save(update_fields=["return_date"])
-        # Remove book from original shelf when copies_in_shelf is 0 (we moved the copy to another shelf)
-        if original_shelf_book and original_shelf_book.copies_in_shelf == 0:
-            original_shelf_book.delete()
 
 
 class AudioBookUpload(models.Model):

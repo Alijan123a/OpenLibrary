@@ -402,8 +402,7 @@ function BookDetailsContent() {
       const sb = shelfBookByShelf.get(shelf.id);
       const copies_in_shelf = sb ? sb.copies_in_shelf : 0;
       const borrowed_from_shelf = sb ? activeBorrowsByShelfBook.get(sb.id) || 0 : 0;
-      // copies_in_shelf is already decremented on borrow, so remaining = copies_in_shelf
-      const remaining_in_shelf = copies_in_shelf;
+      const remaining_in_shelf = Math.max(copies_in_shelf - borrowed_from_shelf, 0);
       return {
         shelf_id: shelf.id,
         location: shelf.location,

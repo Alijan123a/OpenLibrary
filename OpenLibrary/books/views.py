@@ -1,7 +1,7 @@
 import requests
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db.models import Q
+from django.db.models import Count, F, Q
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
@@ -74,13 +74,19 @@ class BookViewSet(viewsets.ModelViewSet):
             raise DRFValidationError("کتابی با این کد QR یافت نشد.")
         except (ValueError, TypeError):
             raise DRFValidationError("کد QR نامعتبر است.")
-        shelf_books = ShelfBook.objects.filter(book=book, copies_in_shelf__gt=0).select_related("shelf")
+        shelf_books = (
+            ShelfBook.objects.filter(book=book)
+            .annotate(active_borrows=Count("borrows", filter=Q(borrows__return_date__isnull=True)))
+            .filter(copies_in_shelf__gt=F("active_borrows"))
+            .select_related("shelf")
+        )
         result = [
             {
                 "shelf_book_id": sb.id,
                 "shelf_id": sb.shelf_id,
                 "location": sb.shelf.location,
                 "copies_in_shelf": sb.copies_in_shelf,
+                "copies_available": sb.copies_in_shelf - sb.active_borrows,
             }
             for sb in shelf_books
         ]
@@ -212,7 +218,11 @@ class BorrowViewSet(viewsets.ModelViewSet):
             raise DRFValidationError("کد QR نامعتبر است.")
 
         shelf_book_id = request.data.get("shelf_book_id")
-        shelf_books = ShelfBook.objects.filter(book=book, copies_in_shelf__gt=0)
+        shelf_books = (
+            ShelfBook.objects.filter(book=book)
+            .annotate(active_borrows=Count("borrows", filter=Q(borrows__return_date__isnull=True)))
+            .filter(copies_in_shelf__gt=F("active_borrows"))
+        )
         if not shelf_books.exists():
             raise DRFValidationError("نسخه‌ای از این کتاب در حال حاضر موجود نیست.")
 
