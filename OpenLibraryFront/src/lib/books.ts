@@ -98,6 +98,22 @@ export const booksApi = {
     return [];
   },
 
+  /** Shelves where this book has available copies (for QR scan borrow dropdown). */
+  getShelvesForBook: async (qrCodeId: string): Promise<{ shelf_book_id: number; shelf_id: number; location: string; copies_in_shelf: number }[]> => {
+    const token = getAuthToken();
+    if (!token) throw new Error("Not authenticated");
+    const res = await fetch(`${API_BASE_URL}/api/books/shelves-for-book/?qr_code_id=${encodeURIComponent(qrCodeId)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const msg = Array.isArray(data.detail) ? data.detail[0] : data.detail;
+      throw new Error(msg || `Failed to fetch shelves: ${res.status}`);
+    }
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  },
+
   // Get book by QR code ID (for students)
   getBookByQrCodeId: async (qrCodeId: string): Promise<Book> => {
     const token = getAuthToken();

@@ -1,6 +1,7 @@
 import requests
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models import Q
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
@@ -61,6 +62,30 @@ class BookViewSet(viewsets.ModelViewSet):
         serializer = BookSerializer(book)
         return Response(serializer.data)
 
+    @action(detail=False, methods=["get"], url_path="shelves-for-book", permission_classes=[IsAuthenticated])
+    def shelves_for_book(self, request):
+        """List shelves where this book has available copies. For QR scan borrow dropdown."""
+        qr_code_id = request.query_params.get("qr_code_id")
+        if not qr_code_id:
+            raise DRFValidationError("qr_code_id is required")
+        try:
+            book = Book.objects.get(qr_code_id=qr_code_id)
+        except Book.DoesNotExist:
+            raise DRFValidationError("کتابی با این کد QR یافت نشد.")
+        except (ValueError, TypeError):
+            raise DRFValidationError("کد QR نامعتبر است.")
+        shelf_books = ShelfBook.objects.filter(book=book, copies_in_shelf__gt=0).select_related("shelf")
+        result = [
+            {
+                "shelf_book_id": sb.id,
+                "shelf_id": sb.shelf_id,
+                "location": sb.shelf.location,
+                "copies_in_shelf": sb.copies_in_shelf,
+            }
+            for sb in shelf_books
+        ]
+        return Response(result)
+
 
 # Admins and Library employees can manage shelfs
 class ShelfViewSet(viewsets.ModelViewSet):
@@ -106,12 +131,17 @@ class BorrowViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Students see only their own borrows; librarians/admins see all."""
         qs = Borrow.objects.select_related(
-            "shelf_book", "shelf_book__shelf", "shelf_book__book"
+            "book", "shelf_book", "shelf_book__shelf", "shelf_book__book"
         )
         role = getattr(getattr(self.request, "user", None), "role", None)
         if role and str(role).strip().lower() == "student":
             user_id = str(getattr(self.request.user, "id", ""))
-            qs = qs.filter(borrower_id=user_id)
+            username = (getattr(self.request.user, "username", None) or "").strip()
+            # Match by borrower_id (from JWT) OR borrower_username (seeded data may use different IDs)
+            if user_id or username:
+                qs = qs.filter(Q(borrower_id=user_id) | Q(borrower_username__iexact=username))
+            else:
+                qs = qs.none()
         return qs
 
     def get_serializer_class(self):
@@ -169,7 +199,7 @@ class BorrowViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["post"], url_path="by-qr", permission_classes=[IsAuthenticated, IsStudent])
     def borrow_by_qr(self, request):
-        """Create a borrow by QR code ID. For students."""
+        """Create a borrow by QR code ID. For students. Optionally specify shelf_book_id to choose shelf."""
         qr_code_id = request.data.get("qr_code_id")
         if not qr_code_id:
             raise DRFValidationError("qr_code_id is required")
@@ -181,12 +211,18 @@ class BorrowViewSet(viewsets.ModelViewSet):
         except (ValueError, TypeError):
             raise DRFValidationError("کد QR نامعتبر است.")
 
-        # ShelfBooks for this book with at least one copy (copies_in_shelf is decremented on borrow)
+        shelf_book_id = request.data.get("shelf_book_id")
         shelf_books = ShelfBook.objects.filter(book=book, copies_in_shelf__gt=0)
         if not shelf_books.exists():
             raise DRFValidationError("نسخه‌ای از این کتاب در حال حاضر موجود نیست.")
 
-        shelf_book = shelf_books.first()
+        if shelf_book_id is not None:
+            try:
+                shelf_book = shelf_books.get(id=shelf_book_id)
+            except ShelfBook.DoesNotExist:
+                raise DRFValidationError("قفسه انتخاب‌شده معتبر نیست یا نسخه‌ای موجود ندارد.")
+        else:
+            shelf_book = shelf_books.first()
         serializer = BorrowSerializer(data={"shelf_book": shelf_book.id})
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)

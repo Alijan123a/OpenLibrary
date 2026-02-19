@@ -66,6 +66,8 @@ class BorrowObjectPermission(permissions.BasePermission):
             return True
         if role == "student":
             user_id = str(getattr(request.user, "id", ""))
-            return obj.borrower_id == user_id
+            username = (getattr(request.user, "username", None) or "").strip().lower()
+            obj_username = (obj.borrower_username or "").strip().lower()
+            return obj.borrower_id == user_id or (username and obj_username == username)
         return False
 

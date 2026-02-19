@@ -7,6 +7,8 @@ import QRScanner from "@/components/QRScanner";
 import { borrowByQr } from "@/lib/borrow";
 import { booksApi, type Book } from "@/lib/books";
 
+type ShelfOption = { shelf_book_id: number; shelf_id: number; location: string; copies_in_shelf: number };
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 function getCoverImageUrl(coverImage?: string | null): string | null {
@@ -33,18 +35,29 @@ function ScanContent() {
   const [success, setSuccess] = useState("");
   const [book, setBook] = useState<Book | null>(null);
   const [qrCodeId, setQrCodeId] = useState<string | null>(null);
+  const [shelves, setShelves] = useState<ShelfOption[]>([]);
+  const [selectedShelfBookId, setSelectedShelfBookId] = useState<number | null>(null);
 
   const handleQrDetected = async (decoded: string) => {
     setError("");
     setSuccess("");
     setBook(null);
     setQrCodeId(null);
+    setShelves([]);
+    setSelectedShelfBookId(null);
     setLoading(true);
 
     try {
-      const bookData = await booksApi.getBookByQrCodeId(decoded);
+      const [bookData, shelvesData] = await Promise.all([
+        booksApi.getBookByQrCodeId(decoded),
+        booksApi.getShelvesForBook(decoded),
+      ]);
       setBook(bookData);
       setQrCodeId(decoded);
+      setShelves(shelvesData);
+      if (shelvesData.length > 0) {
+        setSelectedShelfBookId(shelvesData[0].shelf_book_id);
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "خطا در دریافت اطلاعات کتاب");
     } finally {
@@ -58,10 +71,12 @@ function ScanContent() {
     setSuccess("");
     setBorrowing(true);
     try {
-      const borrow = await borrowByQr(qrCodeId);
+      const borrow = await borrowByQr(qrCodeId, selectedShelfBookId ?? undefined);
       setSuccess(`کتاب با موفقیت امانت گرفته شد. شماره امانت: ${borrow.id}`);
       setBook(null);
       setQrCodeId(null);
+      setShelves([]);
+      setSelectedShelfBookId(null);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "خطا در ثبت امانت");
     } finally {
@@ -72,6 +87,8 @@ function ScanContent() {
   const handleReset = () => {
     setBook(null);
     setQrCodeId(null);
+    setShelves([]);
+    setSelectedShelfBookId(null);
     setError("");
     setSuccess("");
   };
@@ -133,13 +150,31 @@ function ScanContent() {
                 <div className="md:col-span-2">توضیحات: <span className="font-medium">{book.description || "—"}</span></div>
               </div>
             </div>
+            {shelves.length > 0 && (
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  قفسه (انتخاب قفسه برای برداشتن کتاب)
+                </label>
+                <select
+                  value={selectedShelfBookId ?? ""}
+                  onChange={(e) => setSelectedShelfBookId(Number(e.target.value))}
+                  className="block w-full max-w-xs rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
+                >
+                  {shelves.map((s) => (
+                    <option key={s.shelf_book_id} value={s.shelf_book_id}>
+                      {s.location} ({s.copies_in_shelf} نسخه موجود)
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="mt-6 flex flex-wrap gap-3">
               <button
                 onClick={handleBorrow}
-                disabled={borrowing}
+                disabled={borrowing || shelves.length === 0}
                 className="px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg disabled:opacity-50"
               >
-                {borrowing ? "در حال ثبت امانت..." : "قرض گرفتن"}
+                {borrowing ? "در حال ثبت امانت..." : shelves.length === 0 ? "نسخه‌ای موجود نیست" : "قرض گرفتن"}
               </button>
               <button
                 onClick={handleReset}

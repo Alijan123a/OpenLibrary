@@ -225,7 +225,7 @@ class Borrow(models.Model):
         self.return_date = now()
         self.save(update_fields=["return_date"])
         # Remove book from original shelf when copies_in_shelf is 0 (we moved the copy to another shelf)
-        if original_shelf_book.copies_in_shelf == 0:
+        if original_shelf_book and original_shelf_book.copies_in_shelf == 0:
             original_shelf_book.delete()
 
 
