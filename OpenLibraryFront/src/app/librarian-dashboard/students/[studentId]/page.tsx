@@ -112,10 +112,47 @@ function StudentDetailsContent() {
   const [error, setError] = useState("");
   const [warning, setWarning] = useState("");
   const [actionError, setActionError] = useState("");
+  const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<string>("id");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  const handleSort = (key: string) => {
+    setSortDir((d) => (sortKey === key ? (d === "asc" ? "desc" : "asc") : "desc"));
+    setSortKey(key);
+  };
+
+  const filteredRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter(
+      (r) =>
+        String(r.id).includes(q) ||
+        String(r.shelf_book).includes(q) ||
+        r.status.toLowerCase().includes(q) ||
+        String(r.overdue_days).includes(q) ||
+        String(r.penalty).includes(q)
+    );
+  }, [rows, search]);
+
+  const sortedRows = useMemo(() => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...filteredRows].sort((a, b) => {
+      let va: string | number = (a as Record<string, unknown>)[sortKey] ?? "";
+      let vb: string | number = (b as Record<string, unknown>)[sortKey] ?? "";
+      if (sortKey === "borrowed_date" || sortKey === "due_date" || sortKey === "return_date") {
+        va = va ? new Date(String(va)).getTime() : 0;
+        vb = vb ? new Date(String(vb)).getTime() : 0;
+      }
+      if (typeof va === "string") va = va.toLowerCase();
+      if (typeof vb === "string") vb = vb.toLowerCase();
+      const cmp = va < vb ? -1 : va > vb ? 1 : 0;
+      return cmp * dir;
+    });
+  }, [filteredRows, sortKey, sortDir]);
 
   useEffect(() => {
     if (!studentId || Number.isNaN(studentId)) {
@@ -320,13 +357,28 @@ function StudentDetailsContent() {
         </div>
       </div>
 
+      {/* Search */}
+      <div className="mb-4">
+        <input
+          type="search"
+          placeholder="جستجو: شماره امانت، قفسه، وضعیت، جریمه..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full max-w-sm px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400"
+        />
+      </div>
+
       <DataTable
         columns={columns}
-        data={rows}
+        data={sortedRows}
         loading={loading}
         keyExtractor={(row) => row.id}
         emptyTitle="تاریخچه امانتی یافت نشد"
         emptyDescription="این دانشجو هنوز امانتی ثبت‌شده‌ای ندارد."
+        sortableKeys={["id", "shelf_book", "borrowed_date", "due_date", "return_date", "status", "overdue_days", "penalty"]}
+        sortKey={sortKey}
+        sortDir={sortDir}
+        onSort={handleSort}
       />
       <EditStudentModal
         open={editOpen}

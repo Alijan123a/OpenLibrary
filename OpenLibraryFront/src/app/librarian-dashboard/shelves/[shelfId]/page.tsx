@@ -41,6 +41,13 @@ function ShelfBooksContent() {
   const [filterMinBorrowed, setFilterMinBorrowed] = useState<string>("");
   const [filterMinRemaining, setFilterMinRemaining] = useState<string>("");
   const [filterBookId, setFilterBookId] = useState<number | null>(initialBookId);
+  const [sortKey, setSortKey] = useState<string>("title");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  const handleSort = (key: string) => {
+    setSortDir((d) => (sortKey === key ? (d === "asc" ? "desc" : "asc") : "asc"));
+    setSortKey(key);
+  };
 
   useEffect(() => {
     setFilterBookId(initialBookId);
@@ -139,6 +146,16 @@ function ShelfBooksContent() {
       return true;
     });
   }, [allRows, filterBookId, filterTitle, filterAuthor, filterMinBorrowed, filterMinRemaining]);
+
+  const sortedRows = useMemo(() => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...filteredRows].sort((a, b) => {
+      const va = (a as Record<string, unknown>)[sortKey] ?? "";
+      const vb = (b as Record<string, unknown>)[sortKey] ?? "";
+      const cmp = va < vb ? -1 : va > vb ? 1 : 0;
+      return cmp * dir;
+    });
+  }, [filteredRows, sortKey, sortDir]);
 
   const stats = useMemo(() => {
     let totalCopies = 0;
@@ -265,11 +282,15 @@ function ShelfBooksContent() {
 
       <DataTable
         columns={columns}
-        data={filteredRows}
+        data={sortedRows}
         loading={loading}
         keyExtractor={(r) => r.shelf_book_id}
         emptyTitle="کتابی یافت نشد"
         emptyDescription="هیچ کتابی با این فیلترها در قفسه وجود ندارد. فیلترها را تغییر دهید یا پاک کنید."
+        sortableKeys={["book_id", "title", "author", "copies_in_shelf", "borrowed", "remaining"]}
+        sortKey={sortKey}
+        sortDir={sortDir}
+        onSort={handleSort}
       />
     </div>
   );

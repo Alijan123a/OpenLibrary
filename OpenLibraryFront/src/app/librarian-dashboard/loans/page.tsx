@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import PageHeader from "@/components/ui/PageHeader";
@@ -11,7 +11,15 @@ function LoansContent() {
   const [borrows, setBorrows] = useState<Borrow[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "active" | "overdue" | "returned">("all");
+  const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<string>("id");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [returnId, setReturnId] = useState<number | null>(null);
+
+  const handleSort = (key: string) => {
+    setSortDir((d) => (sortKey === key ? (d === "asc" ? "desc" : "asc") : "desc"));
+    setSortKey(key);
+  };
   const [returning, setReturning] = useState(false);
   const [shelves, setShelves] = useState<{ id: number; location: string }[]>([]);
   const [selectedShelfId, setSelectedShelfId] = useState<number | null>(null);
@@ -64,10 +72,36 @@ function LoansContent() {
     return { label: "فعال", variant: "info" as const, key: "active" };
   };
 
-  const filtered = borrows.filter((b) => {
-    if (filter === "all") return true;
-    return getStatus(b).key === filter;
-  });
+  const filtered = useMemo(() => {
+    return borrows.filter((b) => {
+      if (filter !== "all" && getStatus(b).key !== filter) return false;
+      const q = search.trim().toLowerCase();
+      if (!q) return true;
+      const un = (b.borrower_username ?? "").toLowerCase();
+      const sn = (b.borrower_student_number ?? "").toLowerCase();
+      const loc = (b.shelf_location ?? "").toLowerCase();
+      const title = (b.book_title ?? "").toLowerCase();
+      const author = (b.book_author ?? "").toLowerCase();
+      return un.includes(q) || sn.includes(q) || loc.includes(q) || title.includes(q) || author.includes(q) || String(b.id).includes(q);
+    });
+  }, [borrows, filter, search]);
+
+  const sortedRows = useMemo(() => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      let va: string | number | null = (a as Record<string, unknown>)[sortKey] ?? "";
+      let vb: string | number | null = (b as Record<string, unknown>)[sortKey] ?? "";
+      if (sortKey === "borrowed_date" || sortKey === "id") {
+        va = va ? new Date(String(va)).getTime() : 0;
+        vb = vb ? new Date(String(vb)).getTime() : 0;
+      }
+      if (typeof va === "string") va = va.toLowerCase();
+      if (typeof vb === "string") vb = vb.toLowerCase();
+      if (va < vb) return -dir;
+      if (va > vb) return dir;
+      return 0;
+    });
+  }, [filtered, sortKey, sortDir]);
 
   const columns: Column<Borrow>[] = [
     { key: "id", header: "#", render: (r) => r.id, className: "w-12" },
@@ -114,6 +148,17 @@ function LoansContent() {
     <div>
       <PageHeader title="امانت‌های فعال" description="لیست تمامی امانت‌های کتابخانه" />
 
+      {/* Search */}
+      <div className="mb-4">
+        <input
+          type="search"
+          placeholder="جستجو: دانشجو، شماره دانشجویی، قفسه، عنوان کتاب..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full max-w-sm px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400"
+        />
+      </div>
+
       {/* Filter tabs */}
       <div className="flex flex-wrap gap-2 mb-4">
         {[
@@ -138,10 +183,14 @@ function LoansContent() {
 
       <DataTable
         columns={columns}
-        data={filtered}
+        data={sortedRows}
         loading={loading}
         keyExtractor={(r) => r.id}
         emptyTitle="امانتی یافت نشد"
+        sortableKeys={["id", "borrower_username", "borrower_student_number", "shelf_location", "borrowed_date"]}
+        sortKey={sortKey}
+        sortDir={sortDir}
+        onSort={handleSort}
       />
       {returnId !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">

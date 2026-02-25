@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import DashboardLayout from "@/components/DashboardLayout";
 import DataTable, { type Column } from "@/components/ui/DataTable";
@@ -109,6 +109,13 @@ function StudentsContent() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
+  const [sortKey, setSortKey] = useState<string>("username");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  const handleSort = (key: string) => {
+    setSortDir((d) => (sortKey === key ? (d === "asc" ? "desc" : "asc") : "asc"));
+    setSortKey(key);
+  };
 
   const fetchUsers = () => {
     setLoading(true);
@@ -121,13 +128,29 @@ function StudentsContent() {
   useEffect(() => { fetchUsers(); }, []);
 
   const normalizedSearch = searchText.trim().toLowerCase();
-  const filteredUsers = users.filter((user) => {
-    if (!normalizedSearch) return true;
-    const username = user.username?.toLowerCase() || "";
-    const email = user.email?.toLowerCase() || "";
-    const studentNumber = user.student_number?.toLowerCase() || "";
-    return username.includes(normalizedSearch) || email.includes(normalizedSearch) || studentNumber.includes(normalizedSearch) || String(user.id).includes(normalizedSearch);
-  });
+  const filteredUsers = useMemo(
+    () =>
+      users.filter((user) => {
+        if (!normalizedSearch) return true;
+        const username = user.username?.toLowerCase() || "";
+        const email = user.email?.toLowerCase() || "";
+        const studentNumber = user.student_number?.toLowerCase() || "";
+        return username.includes(normalizedSearch) || email.includes(normalizedSearch) || studentNumber.includes(normalizedSearch) || String(user.id).includes(normalizedSearch);
+      }),
+    [users, normalizedSearch]
+  );
+
+  const sortedUsers = useMemo(() => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...filteredUsers].sort((a, b) => {
+      const va = (a as Record<string, unknown>)[sortKey] ?? "";
+      const vb = (b as Record<string, unknown>)[sortKey] ?? "";
+      const aStr = String(va).toLowerCase();
+      const bStr = String(vb).toLowerCase();
+      const cmp = aStr < bStr ? -1 : aStr > bStr ? 1 : 0;
+      return cmp * dir;
+    });
+  }, [filteredUsers, sortKey, sortDir]);
 
   const studentDisplay = (r: User) =>
     r.student_number ? `${r.username} (${r.student_number})` : r.username;
@@ -179,7 +202,17 @@ function StudentsContent() {
           </div>
         }
       />
-      <DataTable columns={columns} data={filteredUsers} loading={loading} keyExtractor={(r) => r.id} emptyTitle="دانشجویی یافت نشد" />
+      <DataTable
+        columns={columns}
+        data={sortedUsers}
+        loading={loading}
+        keyExtractor={(r) => r.id}
+        emptyTitle="دانشجویی یافت نشد"
+        sortableKeys={["id", "username", "email", "is_active"]}
+        sortKey={sortKey}
+        sortDir={sortDir}
+        onSort={handleSort}
+      />
       <StudentModal open={modalOpen} student={null} onClose={() => setModalOpen(false)} onSaved={fetchUsers} />
     </div>
   );

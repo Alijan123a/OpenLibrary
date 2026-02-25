@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import DashboardLayout from "@/components/DashboardLayout";
 import DataTable, { type Column } from "@/components/ui/DataTable";
@@ -152,7 +152,14 @@ function BooksContent() {
   const [borrows, setBorrows] = useState<Borrow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<string>("title");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [modalOpen, setModalOpen] = useState(false);
+
+  const handleSort = (key: string) => {
+    setSortDir((d) => (sortKey === key ? (d === "asc" ? "desc" : "asc") : "asc"));
+    setSortKey(key);
+  };
 
   const fetchBooks = () => {
     setLoading(true);
@@ -175,8 +182,14 @@ function BooksContent() {
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, []);
 
-  const filtered = books.filter(
-    (b) => b.title.toLowerCase().includes(search.toLowerCase()) || b.author.toLowerCase().includes(search.toLowerCase())
+  const filtered = useMemo(
+    () =>
+      books.filter(
+        (b) =>
+          b.title.toLowerCase().includes(search.toLowerCase()) ||
+          b.author.toLowerCase().includes(search.toLowerCase())
+      ),
+    [books, search]
   );
 
   const shelfBookToBook = new Map<number, number>();
@@ -201,6 +214,19 @@ function BooksContent() {
       remaining_count: Math.max((book.total_copies || 0) - borrowedCount, 0),
     };
   });
+
+  const sortedRows = useMemo(() => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...rows].sort((a, b) => {
+      let va: string | number = (a as Record<string, unknown>)[sortKey] ?? "";
+      let vb: string | number = (b as Record<string, unknown>)[sortKey] ?? "";
+      if (typeof va === "string") va = va.toLowerCase();
+      if (typeof vb === "string") vb = vb.toLowerCase();
+      if (va < vb) return -dir;
+      if (va > vb) return dir;
+      return 0;
+    });
+  }, [rows, sortKey, sortDir]);
 
   const columns: Column<BookRow>[] = [
     { key: "id", header: "شماره", render: (r) => r.id, className: "w-14" },
@@ -250,11 +276,15 @@ function BooksContent() {
 
       <DataTable
         columns={columns}
-        data={rows}
+        data={sortedRows}
         loading={loading}
         keyExtractor={(r) => r.id}
         emptyTitle="کتابی یافت نشد"
         emptyDescription="هنوز کتابی در کتابخانه ثبت نشده است."
+        sortableKeys={["id", "title", "author", "total_copies", "borrowed_count", "remaining_count"]}
+        sortKey={sortKey}
+        sortDir={sortDir}
+        onSort={handleSort}
       />
 
       <BookModal

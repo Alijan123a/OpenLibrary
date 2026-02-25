@@ -327,7 +327,22 @@ function BookDetailsContent() {
   const [shelfBooks, setShelfBooks] = useState<ShelfBook[]>([]);
   const [borrows, setBorrows] = useState<Borrow[]>([]);
   const [shelfFilter, setShelfFilter] = useState<"all" | "has_book" | "no_book">("all");
+  const [shelfSearch, setShelfSearch] = useState("");
+  const [shelfSortKey, setShelfSortKey] = useState<string>("location");
+  const [shelfSortDir, setShelfSortDir] = useState<"asc" | "desc">("asc");
+  const [borrowerSearch, setBorrowerSearch] = useState("");
+  const [borrowerSortKey, setBorrowerSortKey] = useState<string>("id");
+  const [borrowerSortDir, setBorrowerSortDir] = useState<"asc" | "desc">("desc");
   const [loading, setLoading] = useState(true);
+
+  const handleShelfSort = (key: string) => {
+    setShelfSortDir((d) => (shelfSortKey === key ? (d === "asc" ? "desc" : "asc") : "asc"));
+    setShelfSortKey(key);
+  };
+  const handleBorrowerSort = (key: string) => {
+    setBorrowerSortDir((d) => (borrowerSortKey === key ? (d === "asc" ? "desc" : "asc") : "desc"));
+    setBorrowerSortKey(key);
+  };
   const [error, setError] = useState("");
   const [actionError, setActionError] = useState("");
   const [editOpen, setEditOpen] = useState(false);
@@ -419,10 +434,50 @@ function BookDetailsContent() {
   const unassignedCount = Math.max((book?.total_copies || 0) - totalAssigned, 0);
 
   const filteredShelfRows = useMemo(() => {
-    if (shelfFilter === "has_book") return shelfRows.filter((r) => r.has_book);
-    if (shelfFilter === "no_book") return shelfRows.filter((r) => !r.has_book);
-    return shelfRows;
-  }, [shelfRows, shelfFilter]);
+    let out = shelfRows;
+    if (shelfFilter === "has_book") out = out.filter((r) => r.has_book);
+    else if (shelfFilter === "no_book") out = out.filter((r) => !r.has_book);
+    const q = shelfSearch.trim().toLowerCase();
+    if (q) out = out.filter((r) => r.location.toLowerCase().includes(q) || String(r.shelf_id).includes(q));
+    return out;
+  }, [shelfRows, shelfFilter, shelfSearch]);
+
+  const sortedShelfRows = useMemo(() => {
+    const dir = shelfSortDir === "asc" ? 1 : -1;
+    return [...filteredShelfRows].sort((a, b) => {
+      const va = (a as Record<string, unknown>)[shelfSortKey] ?? "";
+      const vb = (b as Record<string, unknown>)[shelfSortKey] ?? "";
+      const cmp = va < vb ? -1 : va > vb ? 1 : 0;
+      return cmp * dir;
+    });
+  }, [filteredShelfRows, shelfSortKey, shelfSortDir]);
+
+  const filteredBorrowerRows = useMemo(() => {
+    const q = borrowerSearch.trim().toLowerCase();
+    if (!q) return borrowerRows;
+    return borrowerRows.filter(
+      (r) =>
+        (r.borrower_username ?? "").toLowerCase().includes(q) ||
+        (r.borrower_student_number ?? "").toLowerCase().includes(q) ||
+        String(r.id).includes(q) ||
+        r.status.toLowerCase().includes(q)
+    );
+  }, [borrowerRows, borrowerSearch]);
+
+  const sortedBorrowerRows = useMemo(() => {
+    const dir = borrowerSortDir === "asc" ? 1 : -1;
+    return [...filteredBorrowerRows].sort((a, b) => {
+      let va: string | number = (a as Record<string, unknown>)[borrowerSortKey] ?? "";
+      let vb: string | number = (b as Record<string, unknown>)[borrowerSortKey] ?? "";
+      if (borrowerSortKey === "borrowed_date" || borrowerSortKey === "due_date" || borrowerSortKey === "return_date") {
+        va = va ? new Date(String(va)).getTime() : 0;
+        vb = vb ? new Date(String(vb)).getTime() : 0;
+      }
+      if (typeof va === "string") va = va.toLowerCase();
+      if (typeof vb === "string") vb = vb.toLowerCase();
+      return (va < vb ? -1 : va > vb ? 1 : 0) * dir;
+    });
+  }, [filteredBorrowerRows, borrowerSortKey, borrowerSortDir]);
 
   const borrowerRows: BorrowerRow[] = useMemo(() => {
     const now = new Date();
@@ -667,26 +722,52 @@ function BookDetailsContent() {
             </button>
           ))}
         </div>
+        <div className="mb-3">
+          <input
+            type="search"
+            placeholder="جستجو قفسه (موقعیت یا شماره)..."
+            value={shelfSearch}
+            onChange={(e) => setShelfSearch(e.target.value)}
+            className="w-full max-w-xs px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400"
+          />
+        </div>
         <DataTable
           columns={shelfColumns}
-          data={filteredShelfRows}
+          data={sortedShelfRows}
           loading={loading}
           keyExtractor={(r) => r.shelf_id}
           emptyTitle="قفسه‌ای یافت نشد"
           emptyDescription="هنوز قفسه‌ای در کتابخانه تعریف نشده است."
+          sortableKeys={["shelf_id", "location", "copies_in_shelf", "borrowed_from_shelf", "remaining_in_shelf"]}
+          sortKey={shelfSortKey}
+          sortDir={shelfSortDir}
+          onSort={handleShelfSort}
         />
       </div>
 
       <div className="mb-3">
         <h2 className="text-sm font-semibold text-gray-800">دانشجویان قرض‌گیرنده این کتاب</h2>
+        <div className="mt-2">
+          <input
+            type="search"
+            placeholder="جستجو دانشجو، شماره دانشجویی..."
+            value={borrowerSearch}
+            onChange={(e) => setBorrowerSearch(e.target.value)}
+            className="w-full max-w-xs px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400"
+          />
+        </div>
       </div>
       <DataTable
         columns={borrowerColumns}
-        data={borrowerRows}
+        data={sortedBorrowerRows}
         loading={loading}
         keyExtractor={(r) => r.id}
         emptyTitle="رکورد امانتی برای این کتاب یافت نشد"
         emptyDescription="هیچ دانشجویی تاکنون این کتاب را قرض نگرفته است."
+        sortableKeys={["id", "borrower_username", "borrowed_date", "due_date", "return_date", "status", "overdue_days", "penalty"]}
+        sortKey={borrowerSortKey}
+        sortDir={borrowerSortDir}
+        onSort={handleBorrowerSort}
       />
 
       <AssignModal

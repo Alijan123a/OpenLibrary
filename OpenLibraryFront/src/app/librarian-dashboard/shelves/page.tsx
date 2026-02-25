@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import PageHeader from "@/components/ui/PageHeader";
@@ -87,9 +87,37 @@ function ShelfModal({
 function ShelvesContent() {
   const [shelves, setShelves] = useState<Shelf[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<string>("location");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingShelf, setEditingShelf] = useState<Shelf | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+
+  const handleSort = (key: string) => {
+    setSortDir((d) => (sortKey === key ? (d === "asc" ? "desc" : "asc") : "asc"));
+    setSortKey(key);
+  };
+
+  const filtered = useMemo(
+    () =>
+      shelves.filter(
+        (s) =>
+          s.location.toLowerCase().includes(search.trim().toLowerCase()) ||
+          String(s.id).includes(search.trim())
+      ),
+    [shelves, search]
+  );
+
+  const sortedRows = useMemo(() => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      const va = (a as Record<string, unknown>)[sortKey] ?? "";
+      const vb = (b as Record<string, unknown>)[sortKey] ?? "";
+      const cmp = va < vb ? -1 : va > vb ? 1 : 0;
+      return cmp * dir;
+    });
+  }, [filtered, sortKey, sortDir]);
   const [deleting, setDeleting] = useState(false);
 
   const fetchShelves = () => {
@@ -137,7 +165,29 @@ function ShelvesContent() {
           </button>
         }
       />
-      <DataTable columns={columns} data={shelves} loading={loading} keyExtractor={(r) => r.id} emptyTitle="قفسه‌ای یافت نشد" />
+
+      {/* Search */}
+      <div className="mb-4">
+        <input
+          type="search"
+          placeholder="جستجو بر اساس موقعیت یا شماره..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full max-w-sm px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400"
+        />
+      </div>
+
+      <DataTable
+        columns={columns}
+        data={sortedRows}
+        loading={loading}
+        keyExtractor={(r) => r.id}
+        emptyTitle="قفسه‌ای یافت نشد"
+        sortableKeys={["id", "location", "capacity"]}
+        sortKey={sortKey}
+        sortDir={sortDir}
+        onSort={handleSort}
+      />
       <ShelfModal open={modalOpen} shelf={editingShelf} onClose={() => setModalOpen(false)} onSaved={fetchShelves} />
       <ConfirmDialog
         open={deleteId !== null}
