@@ -84,8 +84,8 @@ function ReportsContent() {
   const sortedOverdue = useMemo(() => {
     const dir = overdueSortDir === "asc" ? 1 : -1;
     return [...filteredOverdue].sort((a, b) => {
-      const va = (a as Record<string, unknown>)[overdueSortKey] ?? "";
-      const vb = (b as Record<string, unknown>)[overdueSortKey] ?? "";
+      const va = (a as any)[overdueSortKey] ?? "";
+      const vb = (b as any)[overdueSortKey] ?? "";
       const cmp = va < vb ? -1 : va > vb ? 1 : 0;
       return cmp * dir;
     });
@@ -106,8 +106,8 @@ function ReportsContent() {
   const sortedInventory = useMemo(() => {
     const dir = inventorySortDir === "asc" ? 1 : -1;
     return [...filteredInventory].sort((a, b) => {
-      const va = (a as Record<string, unknown>)[inventorySortKey] ?? "";
-      const vb = (b as Record<string, unknown>)[inventorySortKey] ?? "";
+      const va = (a as any)[inventorySortKey] ?? "";
+      const vb = (b as any)[inventorySortKey] ?? "";
       const cmp = String(va).toLowerCase() < String(vb).toLowerCase() ? -1 : String(va).toLowerCase() > String(vb).toLowerCase() ? 1 : 0;
       return cmp * dir;
     });

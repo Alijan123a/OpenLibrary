@@ -218,8 +218,8 @@ function BooksContent() {
   const sortedRows = useMemo(() => {
     const dir = sortDir === "asc" ? 1 : -1;
     return [...rows].sort((a, b) => {
-      let va: string | number = (a as Record<string, unknown>)[sortKey] ?? "";
-      let vb: string | number = (b as Record<string, unknown>)[sortKey] ?? "";
+      let va = ((a as unknown as Record<string, unknown>)[sortKey] ?? "") as string | number;
+      let vb = ((b as unknown as Record<string, unknown>)[sortKey] ?? "") as string | number;
       if (typeof va === "string") va = va.toLowerCase();
       if (typeof vb === "string") vb = vb.toLowerCase();
       if (va < vb) return -dir;

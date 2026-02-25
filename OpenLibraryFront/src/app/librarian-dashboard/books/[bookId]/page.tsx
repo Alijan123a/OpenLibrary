@@ -445,39 +445,12 @@ function BookDetailsContent() {
   const sortedShelfRows = useMemo(() => {
     const dir = shelfSortDir === "asc" ? 1 : -1;
     return [...filteredShelfRows].sort((a, b) => {
-      const va = (a as Record<string, unknown>)[shelfSortKey] ?? "";
-      const vb = (b as Record<string, unknown>)[shelfSortKey] ?? "";
+      const va = ((a as unknown as Record<string, unknown>)[shelfSortKey] ?? "") as string | number;
+      const vb = ((b as unknown as Record<string, unknown>)[shelfSortKey] ?? "") as string | number;
       const cmp = va < vb ? -1 : va > vb ? 1 : 0;
       return cmp * dir;
     });
   }, [filteredShelfRows, shelfSortKey, shelfSortDir]);
-
-  const filteredBorrowerRows = useMemo(() => {
-    const q = borrowerSearch.trim().toLowerCase();
-    if (!q) return borrowerRows;
-    return borrowerRows.filter(
-      (r) =>
-        (r.borrower_username ?? "").toLowerCase().includes(q) ||
-        (r.borrower_student_number ?? "").toLowerCase().includes(q) ||
-        String(r.id).includes(q) ||
-        r.status.toLowerCase().includes(q)
-    );
-  }, [borrowerRows, borrowerSearch]);
-
-  const sortedBorrowerRows = useMemo(() => {
-    const dir = borrowerSortDir === "asc" ? 1 : -1;
-    return [...filteredBorrowerRows].sort((a, b) => {
-      let va: string | number = (a as Record<string, unknown>)[borrowerSortKey] ?? "";
-      let vb: string | number = (b as Record<string, unknown>)[borrowerSortKey] ?? "";
-      if (borrowerSortKey === "borrowed_date" || borrowerSortKey === "due_date" || borrowerSortKey === "return_date") {
-        va = va ? new Date(String(va)).getTime() : 0;
-        vb = vb ? new Date(String(vb)).getTime() : 0;
-      }
-      if (typeof va === "string") va = va.toLowerCase();
-      if (typeof vb === "string") vb = vb.toLowerCase();
-      return (va < vb ? -1 : va > vb ? 1 : 0) * dir;
-    });
-  }, [filteredBorrowerRows, borrowerSortKey, borrowerSortDir]);
 
   const borrowerRows: BorrowerRow[] = useMemo(() => {
     const now = new Date();
@@ -506,6 +479,33 @@ function BookDetailsContent() {
       })
       .sort((a, b) => b.id - a.id);
   }, [borrows, shelfBookIdsForThisBook]);
+
+  const filteredBorrowerRows = useMemo(() => {
+    const q = borrowerSearch.trim().toLowerCase();
+    if (!q) return borrowerRows;
+    return borrowerRows.filter(
+      (r) =>
+        (r.borrower_username ?? "").toLowerCase().includes(q) ||
+        (r.borrower_student_number ?? "").toLowerCase().includes(q) ||
+        String(r.id).includes(q) ||
+        r.status.toLowerCase().includes(q)
+    );
+  }, [borrowerRows, borrowerSearch]);
+
+  const sortedBorrowerRows = useMemo(() => {
+    const dir = borrowerSortDir === "asc" ? 1 : -1;
+    return [...filteredBorrowerRows].sort((a, b) => {
+      let va = ((a as unknown as Record<string, unknown>)[borrowerSortKey] ?? "") as string | number;
+      let vb = ((b as unknown as Record<string, unknown>)[borrowerSortKey] ?? "") as string | number;
+      if (borrowerSortKey === "borrowed_date" || borrowerSortKey === "due_date" || borrowerSortKey === "return_date") {
+        va = va ? new Date(String(va)).getTime() : 0;
+        vb = vb ? new Date(String(vb)).getTime() : 0;
+      }
+      if (typeof va === "string") va = va.toLowerCase();
+      if (typeof vb === "string") vb = vb.toLowerCase();
+      return (va < vb ? -1 : va > vb ? 1 : 0) * dir;
+    });
+  }, [filteredBorrowerRows, borrowerSortKey, borrowerSortDir]);
 
   const activeBorrowedCount = borrowerRows.filter((r) => r.status !== "returned").length;
   const remainingCount = Math.max((book?.total_copies || 0) - activeBorrowedCount, 0);

@@ -112,8 +112,8 @@ function ShelvesContent() {
   const sortedRows = useMemo(() => {
     const dir = sortDir === "asc" ? 1 : -1;
     return [...filtered].sort((a, b) => {
-      const va = (a as Record<string, unknown>)[sortKey] ?? "";
-      const vb = (b as Record<string, unknown>)[sortKey] ?? "";
+      const va = ((a as unknown as Record<string, unknown>)[sortKey] ?? "") as string | number;
+      const vb = ((b as unknown as Record<string, unknown>)[sortKey] ?? "") as string | number;
       const cmp = va < vb ? -1 : va > vb ? 1 : 0;
       return cmp * dir;
     });

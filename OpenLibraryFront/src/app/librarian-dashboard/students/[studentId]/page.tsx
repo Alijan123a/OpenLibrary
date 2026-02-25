@@ -141,8 +141,8 @@ function StudentDetailsContent() {
   const sortedRows = useMemo(() => {
     const dir = sortDir === "asc" ? 1 : -1;
     return [...filteredRows].sort((a, b) => {
-      let va: string | number = (a as Record<string, unknown>)[sortKey] ?? "";
-      let vb: string | number = (b as Record<string, unknown>)[sortKey] ?? "";
+      let va = ((a as unknown as Record<string, unknown>)[sortKey] ?? "") as string | number;
+      let vb = ((b as unknown as Record<string, unknown>)[sortKey] ?? "") as string | number;
       if (sortKey === "borrowed_date" || sortKey === "due_date" || sortKey === "return_date") {
         va = va ? new Date(String(va)).getTime() : 0;
         vb = vb ? new Date(String(vb)).getTime() : 0;

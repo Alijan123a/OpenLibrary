@@ -89,8 +89,8 @@ function LoansContent() {
   const sortedRows = useMemo(() => {
     const dir = sortDir === "asc" ? 1 : -1;
     return [...filtered].sort((a, b) => {
-      let va: string | number | null = (a as Record<string, unknown>)[sortKey] ?? "";
-      let vb: string | number | null = (b as Record<string, unknown>)[sortKey] ?? "";
+      let va = ((a as unknown as Record<string, unknown>)[sortKey] ?? "") as string | number;
+      let vb = ((b as unknown as Record<string, unknown>)[sortKey] ?? "") as string | number;
       if (sortKey === "borrowed_date") {
         va = va ? new Date(String(va)).getTime() : 0;
         vb = vb ? new Date(String(vb)).getTime() : 0;
