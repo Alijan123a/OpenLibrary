@@ -153,23 +153,32 @@ class ShelfBook(models.Model):
 
     def clean(self):
         """
-        Validate that adding these copies does not exceed the shelf's capacity.
+        Validate that adding these copies does not exceed the shelf's capacity,
+        and that total allocated for the book does not exceed book.total_copies.
         """
         from django.core.exceptions import ValidationError
 
-        # Get existing copies on this shelf from other ShelfBook records
+        # Shelf capacity check
         qs = ShelfBook.objects.filter(shelf=self.shelf)
         if self.pk:
             qs = qs.exclude(pk=self.pk)
         total_existing = qs.aggregate(total=models.Sum('copies_in_shelf'))['total'] or 0
-
-        # Calculate the new total if this record is added or updated
         new_total = total_existing + self.copies_in_shelf
-
         if new_total > self.shelf.capacity:
             raise ValidationError(
                 f"Cannot add {self.copies_in_shelf} copies: shelf capacity ({self.shelf.capacity}) "
                 f"would be exceeded. Currently, there are {total_existing} copies on the shelf."
+            )
+
+        # Book total copies check: allocated must not exceed book.total_copies
+        other_shelf_books = ShelfBook.objects.filter(book=self.book)
+        if self.pk:
+            other_shelf_books = other_shelf_books.exclude(pk=self.pk)
+        other_total = other_shelf_books.aggregate(total=models.Sum('copies_in_shelf'))['total'] or 0
+        allocated_total = other_total + self.copies_in_shelf
+        if allocated_total > self.book.total_copies:
+            raise ValidationError(
+                f"تخصیص کل ({allocated_total}) از تعداد کل کتاب ({self.book.total_copies}) بیشتر نمی‌تواند باشد."
             )
 
     def save(self, *args, **kwargs):
@@ -222,8 +231,8 @@ class Borrow(models.Model):
             self.return_date = now()
             self.save(update_fields=["return_date"])
             return
-        # Different shelf: decrement original, add to target
-        shelf_book, created = ShelfBook.objects.get_or_create(
+        # Different shelf: decrement original, add to target (total allocated unchanged)
+        shelf_book, _ = ShelfBook.objects.get_or_create(
             shelf=shelf,
             book=book,
             defaults={"copies_in_shelf": 0},
@@ -235,8 +244,9 @@ class Borrow(models.Model):
             original_shelf_book.save()
             if original_shelf_book.copies_in_shelf == 0:
                 original_shelf_book.delete()
+                self.shelf_book_id = None  # clear FK before save (object was deleted)
         self.return_date = now()
-        self.save(update_fields=["return_date"])
+        self.save(update_fields=["return_date", "shelf_book"] if self.shelf_book_id is None else ["return_date"])
 
 
 class AudioBookUpload(models.Model):

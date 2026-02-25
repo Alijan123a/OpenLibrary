@@ -1,6 +1,7 @@
 import requests
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
 from django.db.models import Count, F, Q
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets, filters, status
@@ -271,8 +272,11 @@ class BorrowViewSet(viewsets.ModelViewSet):
         except Shelf.DoesNotExist:
             raise DRFValidationError("قفسه یافت نشد.")
         try:
-            borrow.return_book_to_shelf(shelf)
+            with transaction.atomic():
+                borrow.return_book_to_shelf(shelf)
         except DjangoValidationError as e:
+            raise DRFValidationError(str(e))
+        except ValueError as e:
             raise DRFValidationError(str(e))
         borrow.refresh_from_db()  # shelf_book may have been set to null if ShelfBook was deleted
         serializer = BorrowListSerializer(borrow)
