@@ -106,9 +106,11 @@ function ReportsContent() {
   const sortedInventory = useMemo(() => {
     const dir = inventorySortDir === "asc" ? 1 : -1;
     return [...filteredInventory].sort((a, b) => {
-      const va = (a as any)[inventorySortKey] ?? "";
-      const vb = (b as any)[inventorySortKey] ?? "";
-      const cmp = String(va).toLowerCase() < String(vb).toLowerCase() ? -1 : String(va).toLowerCase() > String(vb).toLowerCase() ? 1 : 0;
+      let va = (a as any)[inventorySortKey] ?? "";
+      let vb = (b as any)[inventorySortKey] ?? "";
+      if (typeof va === "string") va = va.toLowerCase();
+      if (typeof vb === "string") vb = vb.toLowerCase();
+      const cmp = va < vb ? -1 : va > vb ? 1 : 0;
       return cmp * dir;
     });
   }, [filteredInventory, inventorySortKey, inventorySortDir]);
