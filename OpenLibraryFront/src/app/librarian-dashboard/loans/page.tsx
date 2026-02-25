@@ -91,7 +91,7 @@ function LoansContent() {
     return [...filtered].sort((a, b) => {
       let va: string | number | null = (a as Record<string, unknown>)[sortKey] ?? "";
       let vb: string | number | null = (b as Record<string, unknown>)[sortKey] ?? "";
-      if (sortKey === "borrowed_date" || sortKey === "id") {
+      if (sortKey === "borrowed_date") {
         va = va ? new Date(String(va)).getTime() : 0;
         vb = vb ? new Date(String(vb)).getTime() : 0;
       }
