@@ -8,6 +8,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import { booksApi, type Book, type CreateBookData } from "@/lib/books";
 import { getShelfBooks, type ShelfBook } from "@/lib/shelves";
 import { getBorrows, type Borrow } from "@/lib/borrow";
+import { compareSortValues } from "@/lib/sort";
 
 /* ── Book form modal ── */
 function BookModal({
@@ -218,13 +219,9 @@ function BooksContent() {
   const sortedRows = useMemo(() => {
     const dir = sortDir === "asc" ? 1 : -1;
     return [...rows].sort((a, b) => {
-      let va = ((a as unknown as Record<string, unknown>)[sortKey] ?? "") as string | number;
-      let vb = ((b as unknown as Record<string, unknown>)[sortKey] ?? "") as string | number;
-      if (typeof va === "string") va = va.toLowerCase();
-      if (typeof vb === "string") vb = vb.toLowerCase();
-      if (va < vb) return -dir;
-      if (va > vb) return dir;
-      return 0;
+      const va = ((a as unknown as Record<string, unknown>)[sortKey] ?? "") as string | number;
+      const vb = ((b as unknown as Record<string, unknown>)[sortKey] ?? "") as string | number;
+      return compareSortValues(va, vb) * dir;
     });
   }, [rows, sortKey, sortDir]);
 

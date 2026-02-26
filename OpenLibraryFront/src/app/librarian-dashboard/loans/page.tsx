@@ -6,6 +6,7 @@ import DataTable, { type Column } from "@/components/ui/DataTable";
 import PageHeader from "@/components/ui/PageHeader";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { getBorrows, returnBook, getShelvesForReturn, type Borrow } from "@/lib/borrow";
+import { compareSortValues } from "@/lib/sort";
 
 function LoansContent() {
   const [borrows, setBorrows] = useState<Borrow[]>([]);
@@ -95,11 +96,7 @@ function LoansContent() {
         va = va ? new Date(String(va)).getTime() : 0;
         vb = vb ? new Date(String(vb)).getTime() : 0;
       }
-      if (typeof va === "string") va = va.toLowerCase();
-      if (typeof vb === "string") vb = vb.toLowerCase();
-      if (va < vb) return -dir;
-      if (va > vb) return dir;
-      return 0;
+      return compareSortValues(va, vb) * dir;
     });
   }, [filtered, sortKey, sortDir]);
 

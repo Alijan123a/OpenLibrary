@@ -12,6 +12,7 @@ import { booksApi, type Book, type CreateBookData } from "@/lib/books";
 import { getShelves, getShelfBooks, assignBookToShelf, updateShelfBook, deleteShelfBook, type Shelf, type ShelfBook } from "@/lib/shelves";
 import { getBorrows, type Borrow } from "@/lib/borrow";
 import { getQrImageUrl } from "@/lib/qr";
+import { compareSortValues } from "@/lib/sort";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -447,8 +448,7 @@ function BookDetailsContent() {
     return [...filteredShelfRows].sort((a, b) => {
       const va = ((a as unknown as Record<string, unknown>)[shelfSortKey] ?? "") as string | number;
       const vb = ((b as unknown as Record<string, unknown>)[shelfSortKey] ?? "") as string | number;
-      const cmp = va < vb ? -1 : va > vb ? 1 : 0;
-      return cmp * dir;
+      return compareSortValues(va, vb) * dir;
     });
   }, [filteredShelfRows, shelfSortKey, shelfSortDir]);
 
@@ -501,9 +501,7 @@ function BookDetailsContent() {
         va = va ? new Date(String(va)).getTime() : 0;
         vb = vb ? new Date(String(vb)).getTime() : 0;
       }
-      if (typeof va === "string") va = va.toLowerCase();
-      if (typeof vb === "string") vb = vb.toLowerCase();
-      return (va < vb ? -1 : va > vb ? 1 : 0) * dir;
+      return compareSortValues(va, vb) * dir;
     });
   }, [filteredBorrowerRows, borrowerSortKey, borrowerSortDir]);
 

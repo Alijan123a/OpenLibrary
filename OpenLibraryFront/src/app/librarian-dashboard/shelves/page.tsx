@@ -7,6 +7,7 @@ import DataTable, { type Column } from "@/components/ui/DataTable";
 import PageHeader from "@/components/ui/PageHeader";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { getShelves, createShelf, updateShelf, deleteShelf, type Shelf } from "@/lib/shelves";
+import { compareSortValues } from "@/lib/sort";
 
 /* ── Shelf form modal ── */
 function ShelfModal({
@@ -114,8 +115,7 @@ function ShelvesContent() {
     return [...filtered].sort((a, b) => {
       const va = ((a as unknown as Record<string, unknown>)[sortKey] ?? "") as string | number;
       const vb = ((b as unknown as Record<string, unknown>)[sortKey] ?? "") as string | number;
-      const cmp = va < vb ? -1 : va > vb ? 1 : 0;
-      return cmp * dir;
+      return compareSortValues(va, vb) * dir;
     });
   }, [filtered, sortKey, sortDir]);
   const [deleting, setDeleting] = useState(false);

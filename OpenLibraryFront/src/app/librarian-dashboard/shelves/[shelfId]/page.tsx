@@ -9,6 +9,7 @@ import DataTable, { type Column } from "@/components/ui/DataTable";
 import { booksApi, type Book } from "@/lib/books";
 import { getShelves, getShelfBooks, type Shelf, type ShelfBook } from "@/lib/shelves";
 import { getBorrows, type Borrow } from "@/lib/borrow";
+import { compareSortValues } from "@/lib/sort";
 
 interface ShelfBookRow {
   shelf_book_id: number;
@@ -152,8 +153,7 @@ function ShelfBooksContent() {
     return [...filteredRows].sort((a, b) => {
       const va = ((a as unknown as Record<string, unknown>)[sortKey] ?? "") as string | number;
       const vb = ((b as unknown as Record<string, unknown>)[sortKey] ?? "") as string | number;
-      const cmp = va < vb ? -1 : va > vb ? 1 : 0;
-      return cmp * dir;
+      return compareSortValues(va, vb) * dir;
     });
   }, [filteredRows, sortKey, sortDir]);
 

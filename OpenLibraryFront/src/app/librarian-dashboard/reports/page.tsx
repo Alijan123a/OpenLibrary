@@ -7,6 +7,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { getBorrows, type Borrow } from "@/lib/borrow";
 import { booksApi, type Book } from "@/lib/books";
+import { compareSortValues } from "@/lib/sort";
 
 interface OverdueRow {
   id: number;
@@ -106,12 +107,9 @@ function ReportsContent() {
   const sortedInventory = useMemo(() => {
     const dir = inventorySortDir === "asc" ? 1 : -1;
     return [...filteredInventory].sort((a, b) => {
-      let va = (a as any)[inventorySortKey] ?? "";
-      let vb = (b as any)[inventorySortKey] ?? "";
-      if (typeof va === "string") va = va.toLowerCase();
-      if (typeof vb === "string") vb = vb.toLowerCase();
-      const cmp = va < vb ? -1 : va > vb ? 1 : 0;
-      return cmp * dir;
+      const va = (a as any)[inventorySortKey] ?? "";
+      const vb = (b as any)[inventorySortKey] ?? "";
+      return compareSortValues(va, vb) * dir;
     });
   }, [filteredInventory, inventorySortKey, inventorySortDir]);
 

@@ -7,6 +7,7 @@ import DataTable, { type Column } from "@/components/ui/DataTable";
 import PageHeader from "@/components/ui/PageHeader";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { getUsers, createUser, updateUser, type User } from "@/lib/users";
+import { compareSortValues } from "@/lib/sort";
 
 /* ── Student form modal ── */
 function StudentModal({
@@ -143,12 +144,9 @@ function StudentsContent() {
   const sortedUsers = useMemo(() => {
     const dir = sortDir === "asc" ? 1 : -1;
     return [...filteredUsers].sort((a, b) => {
-      let va = ((a as unknown as Record<string, unknown>)[sortKey] ?? "") as string | number;
-      let vb = ((b as unknown as Record<string, unknown>)[sortKey] ?? "") as string | number;
-      if (typeof va === "string") va = va.toLowerCase();
-      if (typeof vb === "string") vb = vb.toLowerCase();
-      const cmp = va < vb ? -1 : va > vb ? 1 : 0;
-      return cmp * dir;
+      const va = ((a as unknown as Record<string, unknown>)[sortKey] ?? "") as string | number;
+      const vb = ((b as unknown as Record<string, unknown>)[sortKey] ?? "") as string | number;
+      return compareSortValues(va, vb) * dir;
     });
   }, [filteredUsers, sortKey, sortDir]);
 

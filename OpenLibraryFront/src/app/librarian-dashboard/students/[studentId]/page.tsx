@@ -10,6 +10,7 @@ import StatusBadge from "@/components/ui/StatusBadge";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { getUserById, updateUser, deleteUser, type User } from "@/lib/users";
 import { getBorrows } from "@/lib/borrow";
+import { compareSortValues } from "@/lib/sort";
 
 const BORROW_DAYS = 14;
 const PENALTY_PER_DAY = 5000;
@@ -147,10 +148,7 @@ function StudentDetailsContent() {
         va = va ? new Date(String(va)).getTime() : 0;
         vb = vb ? new Date(String(vb)).getTime() : 0;
       }
-      if (typeof va === "string") va = va.toLowerCase();
-      if (typeof vb === "string") vb = vb.toLowerCase();
-      const cmp = va < vb ? -1 : va > vb ? 1 : 0;
-      return cmp * dir;
+      return compareSortValues(va, vb) * dir;
     });
   }, [filteredRows, sortKey, sortDir]);
 
