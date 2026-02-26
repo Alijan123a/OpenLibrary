@@ -14,7 +14,36 @@ class AudioBookUploadSerializer(serializers.ModelSerializer):
 class BookSerializer(serializers.ModelSerializer):
     class Meta:
         model = Book
-        fields = '__all__'
+        fields = "__all__"
+
+    def validate_isbn(self, value):
+        """ISBN must be unique."""
+        value = (value or "").strip()
+        qs = Book.objects.filter(isbn=value)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("کتابی با این شماره ISBN قبلاً ثبت شده است.")
+        return value
+
+    def validate(self, attrs):
+        """Title + Author must be unique together."""
+        title = (attrs.get("title") or (self.instance.title if self.instance else "") or "").strip()
+        author = (attrs.get("author") or (self.instance.author if self.instance else "") or "").strip()
+        if title:
+            attrs["title"] = title
+        if author:
+            attrs["author"] = author
+        if not title or not author:
+            return attrs
+        qs = Book.objects.filter(title=title, author=author)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError(
+                {"title": "کتابی با این عنوان و نویسنده قبلاً ثبت شده است."}
+            )
+        return attrs
 
 class ShelfSerializer(serializers.ModelSerializer):
     class Meta:

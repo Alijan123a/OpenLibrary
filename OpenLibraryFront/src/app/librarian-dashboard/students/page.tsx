@@ -186,20 +186,23 @@ function StudentsContent() {
         title="مدیریت دانشجویان"
         description="لیست حساب‌های کاربری دانشجویان"
         action={
-          <div className="flex flex-wrap items-center gap-3">
-            <input
-              type="text"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              placeholder="جستجو بر اساس نام کاربری، ایمیل یا شناسه"
-              className="w-full min-w-0 sm:w-72 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400"
-            />
-            <button onClick={() => setModalOpen(true)} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg">
-              افزودن دانشجو
-            </button>
-          </div>
+          <button onClick={() => setModalOpen(true)} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg">
+            افزودن دانشجو
+          </button>
         }
       />
+
+      {/* Search */}
+      <div className="mb-4">
+        <input
+          type="search"
+          placeholder="جستجو بر اساس نام کاربری، ایمیل یا شماره دانشجویی..."
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          className="w-full max-w-sm px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400"
+        />
+      </div>
+
       <DataTable
         columns={columns}
         data={sortedUsers}

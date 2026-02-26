@@ -121,6 +121,9 @@ class Book(models.Model):
     class Meta:
         verbose_name = "Library Book"
         verbose_name_plural = "Library Books"
+        constraints = [
+            models.UniqueConstraint(fields=["title", "author"], name="unique_book_title_author"),
+        ]
 
 
 class Shelf(models.Model):

@@ -2,6 +2,17 @@ import { getAuthToken } from './auth';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
+function parseDrfError(data: Record<string, unknown>): string {
+  if (typeof data.detail === 'string') return data.detail;
+  if (Array.isArray(data.detail) && data.detail.length > 0) return String(data.detail[0]);
+  for (const key of ['isbn', 'title', 'non_field_errors']) {
+    const val = data[key];
+    if (Array.isArray(val) && val.length > 0) return String(val[0]);
+    if (typeof val === 'string') return val;
+  }
+  return (data as { message?: string }).message || '';
+}
+
 export interface CreateBookData {
   title: string;
   author: string;
@@ -67,8 +78,8 @@ export const booksApi = {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      const errorData = await response.json().catch(() => ({})) as Record<string, unknown>;
+      throw new Error(parseDrfError(errorData) || `HTTP error! status: ${response.status}`);
     }
 
     return response.json();
@@ -177,8 +188,8 @@ export const booksApi = {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      const errorData = await response.json().catch(() => ({})) as Record<string, unknown>;
+      throw new Error(parseDrfError(errorData) || `HTTP error! status: ${response.status}`);
     }
 
     return response.json();

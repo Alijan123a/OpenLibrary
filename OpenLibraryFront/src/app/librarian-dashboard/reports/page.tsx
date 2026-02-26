@@ -14,6 +14,7 @@ interface OverdueRow {
   borrower: string;
   borrowerStudentNumber?: string | null;
   shelfBook: number;
+  shelfLocation: string;
   borrowedDate: string;
   daysOverdue: number;
 }
@@ -57,6 +58,7 @@ function ReportsContent() {
               borrower: borrowerDisplay,
               borrowerStudentNumber: b.borrower_student_number,
               shelfBook: b.shelf_book,
+              shelfLocation: b.shelf_location ?? "—",
               borrowedDate: b.borrowed_date,
               daysOverdue,
             };
@@ -76,6 +78,7 @@ function ReportsContent() {
     return overdueRows.filter(
       (r) =>
         r.borrower.toLowerCase().includes(q) ||
+        r.shelfLocation.toLowerCase().includes(q) ||
         String(r.shelfBook).includes(q) ||
         String(r.id).includes(q) ||
         String(r.daysOverdue).includes(q)
@@ -87,8 +90,7 @@ function ReportsContent() {
     return [...filteredOverdue].sort((a, b) => {
       const va = (a as any)[overdueSortKey] ?? "";
       const vb = (b as any)[overdueSortKey] ?? "";
-      const cmp = va < vb ? -1 : va > vb ? 1 : 0;
-      return cmp * dir;
+      return compareSortValues(va, vb) * dir;
     });
   }, [filteredOverdue, overdueSortKey, overdueSortDir]);
 
@@ -116,7 +118,7 @@ function ReportsContent() {
   const overdueColumns: Column<OverdueRow>[] = [
     { key: "id", header: "#", render: (r) => r.id, className: "w-12" },
     { key: "borrower", header: "دانشجو" },
-    { key: "shelfBook", header: "قفسه-کتاب", render: (r) => r.shelfBook },
+    { key: "shelfLocation", header: "قفسه", render: (r) => r.shelfLocation },
     {
       key: "borrowedDate",
       header: "تاریخ امانت",
@@ -159,7 +161,7 @@ function ReportsContent() {
           keyExtractor={(r) => r.id}
           emptyTitle="تاخیری وجود ندارد"
           emptyDescription="هیچ امانت معوقه‌ای یافت نشد."
-          sortableKeys={["id", "borrower", "shelfBook", "borrowedDate", "daysOverdue"]}
+          sortableKeys={["id", "borrower", "shelfLocation", "borrowedDate", "daysOverdue"]}
           sortKey={overdueSortKey}
           sortDir={overdueSortDir}
           onSort={handleOverdueSort}

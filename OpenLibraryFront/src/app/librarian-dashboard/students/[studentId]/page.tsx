@@ -19,6 +19,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 interface StudentBorrowRow {
   id: number;
   shelf_book: number;
+  shelf_location: string;
   borrowed_date: string;
   due_date: string;
   return_date: string | null;
@@ -132,6 +133,7 @@ function StudentDetailsContent() {
     return rows.filter(
       (r) =>
         String(r.id).includes(q) ||
+        r.shelf_location.toLowerCase().includes(q) ||
         String(r.shelf_book).includes(q) ||
         r.status.toLowerCase().includes(q) ||
         String(r.overdue_days).includes(q) ||
@@ -208,6 +210,7 @@ function StudentDetailsContent() {
           return {
             id: borrow.id,
             shelf_book: borrow.shelf_book,
+            shelf_location: borrow.shelf_location ?? "—",
             borrowed_date: borrow.borrowed_date,
             due_date: dueDate.toISOString(),
             return_date: borrow.return_date,
@@ -240,7 +243,7 @@ function StudentDetailsContent() {
 
   const columns: Column<StudentBorrowRow>[] = [
     { key: "id", header: "#", render: (row) => row.id, className: "w-12" },
-    { key: "shelf_book", header: "قفسه-کتاب", render: (row) => row.shelf_book },
+    { key: "shelf_location", header: "قفسه", render: (row) => row.shelf_location },
     { key: "borrowed_date", header: "تاریخ امانت", render: (row) => toDateLabel(row.borrowed_date) },
     { key: "due_date", header: "تاریخ سررسید", render: (row) => toDateLabel(row.due_date) },
     { key: "return_date", header: "تاریخ بازگشت", render: (row) => toDateLabel(row.return_date) },
@@ -373,7 +376,7 @@ function StudentDetailsContent() {
         keyExtractor={(row) => row.id}
         emptyTitle="تاریخچه امانتی یافت نشد"
         emptyDescription="این دانشجو هنوز امانتی ثبت‌شده‌ای ندارد."
-        sortableKeys={["id", "shelf_book", "borrowed_date", "due_date", "return_date", "status", "overdue_days", "penalty"]}
+        sortableKeys={["id", "shelf_location", "borrowed_date", "due_date", "return_date", "status", "overdue_days", "penalty"]}
         sortKey={sortKey}
         sortDir={sortDir}
         onSort={handleSort}
